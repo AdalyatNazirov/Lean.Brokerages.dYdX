@@ -16,6 +16,7 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using QuantConnect.Brokerages.DyDx;
 using QuantConnect.Data;
 using QuantConnect.Tests;
 using QuantConnect.Logging;
@@ -23,10 +24,10 @@ using QuantConnect.Securities;
 using QuantConnect.Data.Market;
 using QuantConnect.Lean.Engine.HistoricalData;
 
-namespace QuantConnect.Brokerages.Template.Tests
+namespace QuantConnect.Brokerages.DyDx.Tests
 {
     [TestFixture, Ignore("Not implemented")]
-    public class TemplateBrokerageHistoryProviderTests
+    public class DyDxBrokerageHistoryProviderTests
     {
         private static TestCaseData[] TestParameters
         {
@@ -60,7 +61,7 @@ namespace QuantConnect.Brokerages.Template.Tests
         {
             TestDelegate test = () =>
             {
-                var brokerage = new TemplateBrokerage(null);
+                var brokerage = new DyDxBrokerage(null);
 
                 var historyProvider = new BrokerageHistoryProvider();
                 historyProvider.SetBrokerage(brokerage);

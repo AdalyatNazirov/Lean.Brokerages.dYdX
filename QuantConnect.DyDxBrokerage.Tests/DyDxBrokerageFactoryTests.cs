@@ -14,19 +14,19 @@
 */
 
 using NUnit.Framework;
-using QuantConnect.Util;
 using QuantConnect.Interfaces;
+using QuantConnect.Util;
 
-namespace QuantConnect.Brokerages.Template.Tests
+namespace QuantConnect.Brokerages.DyDx.Tests
 {
-    [TestFixture]
-    public class TemplateBrokerageAdditionalTests
+    [TestFixture, Ignore("This test requires a configured TemplateBrokerageFactory")]
+    public class DyDxBrokerageFactoryTests
     {
         [Test]
-        public void ParameterlessConstructorComposerUsage()
+        public void InitializesFactoryFromComposer()
         {
-            var brokerage = Composer.Instance.GetExportedValueByTypeName<IDataQueueHandler>("TemplateBrokerage");
-            Assert.IsNotNull(brokerage);
+            using var factory = Composer.Instance.Single<IBrokerageFactory>(instance => instance.BrokerageType == typeof(DyDxBrokerage));
+            Assert.IsNotNull(factory);
         }
     }
 }

@@ -17,12 +17,12 @@ using System;
 using QuantConnect.Data;
 using System.Collections.Generic;
 
-namespace QuantConnect.Brokerages.Template.ToolBox
+namespace QuantConnect.Brokerages.DyDx.ToolBox
 {
     /// <summary>
-    /// Template Brokerage Data Downloader implementation
+    /// DyDx Brokerage Data Downloader implementation
     /// </summary>
-    public class TemplateBrokerageDownloader : IDataDownloader
+    public class DyDxBrokerageDownloader : IDataDownloader
     {
         /// <summary>
         /// Get historical data enumerable for a single symbol, type and resolution given this start and end time (in UTC).
