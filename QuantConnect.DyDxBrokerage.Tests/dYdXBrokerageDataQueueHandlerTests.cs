@@ -20,10 +20,10 @@ using QuantConnect.Tests;
 using QuantConnect.Logging;
 using QuantConnect.Data.Market;
 
-namespace QuantConnect.Brokerages.DyDx.Tests
+namespace QuantConnect.Brokerages.dYdX.Tests
 {
     [TestFixture]
-    public partial class DyDxBrokerageTests
+    public partial class dYdXBrokerageTests
     {
         private static TestCaseData[] TestParameters =>
         [
@@ -37,7 +37,7 @@ namespace QuantConnect.Brokerages.DyDx.Tests
         public void StreamsData(Symbol symbol, Resolution resolution, bool throwsException)
         {
             var cancelationToken = new CancellationTokenSource();
-            var brokerage = (DyDxBrokerage)Brokerage;
+            var brokerage = (dYdXBrokerage)Brokerage;
 
             SubscriptionDataConfig[] configs;
             if (resolution == Resolution.Tick)

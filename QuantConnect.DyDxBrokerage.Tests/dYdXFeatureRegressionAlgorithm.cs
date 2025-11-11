@@ -27,7 +27,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace QuantConnect.Brokerages.DyDx.Tests
+namespace QuantConnect.Brokerages.dYdX.Tests
 {
     /// <summary>
     /// This algorithm tests the order types, security types, data types
@@ -106,7 +106,7 @@ namespace QuantConnect.Brokerages.DyDx.Tests
     /// has received at least one data point for each of the symbols added in the
     /// beggining.
     /// </summary>
-    public abstract class DyDxFeatureRegressionAlgorithm: QCAlgorithm
+    public abstract class dYdXFeatureRegressionAlgorithm: QCAlgorithm
     {
         /// <summary>
         /// Index of the order type to test from the _orderTypes list

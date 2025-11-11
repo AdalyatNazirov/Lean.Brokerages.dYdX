@@ -17,7 +17,7 @@ using QuantConnect.ToolBox;
 using QuantConnect.Configuration;
 using static QuantConnect.Configuration.ApplicationParser;
 
-namespace QuantConnect.Brokerages.DyDx.ToolBox
+namespace QuantConnect.Brokerages.dYdX.ToolBox
 {
     static class Program
     {
@@ -37,11 +37,11 @@ namespace QuantConnect.Brokerages.DyDx.ToolBox
             var targetAppName = targetApp.ToString();
             if (targetAppName.Contains("download") || targetAppName.Contains("dl"))
             {
-                var downloader = new DyDxBrokerageDownloader();
+                var downloader = new dYdXBrokerageDownloader();
             }
             else if (targetAppName.Contains("updater") || targetAppName.EndsWith("spu"))
             {
-                new ExchangeInfoUpdater(new DyDxExchangeInfoDownloader())
+                new ExchangeInfoUpdater(new dYdXExchangeInfoDownloader())
                     .Run();
             }
             else

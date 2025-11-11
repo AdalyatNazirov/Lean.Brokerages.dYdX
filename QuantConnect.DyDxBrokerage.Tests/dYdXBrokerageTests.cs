@@ -21,10 +21,10 @@ using QuantConnect.Securities;
 using System.Collections.Generic;
 using QuantConnect.Tests.Brokerages;
 
-namespace QuantConnect.Brokerages.DyDx.Tests
+namespace QuantConnect.Brokerages.dYdX.Tests
 {
     [TestFixture, Ignore("Not implemented")]
-    public partial class DyDxBrokerageTests : BrokerageTests
+    public partial class dYdXBrokerageTests : BrokerageTests
     {
         protected override Symbol Symbol { get; }
         protected override SecurityType SecurityType { get; }

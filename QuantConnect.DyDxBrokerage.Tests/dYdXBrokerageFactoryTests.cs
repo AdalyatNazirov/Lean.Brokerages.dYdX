@@ -17,15 +17,15 @@ using NUnit.Framework;
 using QuantConnect.Interfaces;
 using QuantConnect.Util;
 
-namespace QuantConnect.Brokerages.DyDx.Tests
+namespace QuantConnect.Brokerages.dYdX.Tests
 {
     [TestFixture, Ignore("This test requires a configured TemplateBrokerageFactory")]
-    public class DyDxBrokerageFactoryTests
+    public class dYdXBrokerageFactoryTests
     {
         [Test]
         public void InitializesFactoryFromComposer()
         {
-            using var factory = Composer.Instance.Single<IBrokerageFactory>(instance => instance.BrokerageType == typeof(DyDxBrokerage));
+            using var factory = Composer.Instance.Single<IBrokerageFactory>(instance => instance.BrokerageType == typeof(dYdXBrokerage));
             Assert.IsNotNull(factory);
         }
     }

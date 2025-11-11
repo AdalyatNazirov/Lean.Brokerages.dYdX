@@ -14,19 +14,22 @@
 */
 
 using NUnit.Framework;
-using QuantConnect.Util;
-using QuantConnect.Interfaces;
 
-namespace QuantConnect.Brokerages.DyDx.Tests
+namespace QuantConnect.Brokerages.dYdX.Tests
 {
-    [TestFixture]
-    public class DyDxBrokerageAdditionalTests
+    [TestFixture, Ignore("Not implemented")]
+    public class dYdXBrokerageSymbolMapperTests
     {
         [Test]
-        public void ParameterlessConstructorComposerUsage()
+        public void ReturnsCorrectLeanSymbol()
         {
-            var brokerage = Composer.Instance.GetExportedValueByTypeName<IDataQueueHandler>("DyDxBrokerage");
-            Assert.IsNotNull(brokerage);
+
+        }
+
+        [Test]
+        public void ReturnsCorrectBrokerageSymbol()
+        {
+
         }
     }
 }

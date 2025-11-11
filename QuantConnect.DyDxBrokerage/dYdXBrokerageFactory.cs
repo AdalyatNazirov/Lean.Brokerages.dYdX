@@ -20,12 +20,12 @@ using QuantConnect.Interfaces;
 using QuantConnect.Securities;
 using System.Collections.Generic;
 
-namespace QuantConnect.Brokerages.DyDx
+namespace QuantConnect.Brokerages.dYdX
 {
     /// <summary>
     /// Provides a template implementation of BrokerageFactory
     /// </summary>
-    public class DyDxBrokerageFactory : BrokerageFactory
+    public class dYdXBrokerageFactory : BrokerageFactory
     {
         /// <summary>
         /// Gets the brokerage data required to run the brokerage from configuration/disk
@@ -37,9 +37,9 @@ namespace QuantConnect.Brokerages.DyDx
         public override Dictionary<string, string> BrokerageData { get; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DyDxBrokerageFactory"/> class
+        /// Initializes a new instance of the <see cref="dYdXBrokerageFactory"/> class
         /// </summary>
-        public DyDxBrokerageFactory() : base(typeof(DyDxBrokerage))
+        public dYdXBrokerageFactory() : base(typeof(dYdXBrokerage))
         {
         }
 

@@ -13,9 +13,9 @@
  * limitations under the License.
 */
 
-namespace QuantConnect.Brokerages.DyDx.Tests
+namespace QuantConnect.Brokerages.dYdX.Tests
 {
-    public class BybitBrokerageRegressionAlgorithm : DyDxFeatureRegressionAlgorithm
+    public class BybitBrokerageRegressionAlgorithm : dYdXFeatureRegressionAlgorithm
     {
         public override BrokerageName Brokerage { get; set; } = BrokerageName.Bybit;
         protected override string BrokerageSettingsURL { get; set; } = "https://raw.githubusercontent.com/QuantConnect/Lean.Brokerages.ByBit/master/bybit.json";
