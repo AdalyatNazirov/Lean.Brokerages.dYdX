@@ -48,7 +48,7 @@ namespace QuantConnect.Brokerages.dYdX
         /// Creates a new instance
         /// </summary>
         /// <param name="aggregator">consolidate ticks</param>
-        public dYdXBrokerage(IDataAggregator aggregator) : base("TemplateBrokerage")
+        public dYdXBrokerage(IDataAggregator aggregator) : base(Market.dYdX)
         {
             _aggregator = aggregator;
             _subscriptionManager = new EventBasedDataQueueHandlerSubscriptionManager();

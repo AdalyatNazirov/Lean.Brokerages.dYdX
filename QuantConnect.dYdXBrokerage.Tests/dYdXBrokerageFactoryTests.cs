@@ -19,7 +19,7 @@ using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages.dYdX.Tests
 {
-    [TestFixture, Ignore("This test requires a configured TemplateBrokerageFactory")]
+    [TestFixture]
     public class dYdXBrokerageFactoryTests
     {
         [Test]
