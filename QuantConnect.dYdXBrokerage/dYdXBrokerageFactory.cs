@@ -19,6 +19,9 @@ using QuantConnect.Brokerages;
 using QuantConnect.Interfaces;
 using QuantConnect.Securities;
 using System.Collections.Generic;
+using QuantConnect.Configuration;
+using QuantConnect.Data;
+using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages.dYdX
 {
@@ -34,7 +37,11 @@ namespace QuantConnect.Brokerages.dYdX
         /// The implementation of this property will create the brokerage data dictionary required for
         /// running live jobs. See <see cref="IJobQueueHandler.NextJob"/>
         /// </remarks>
-        public override Dictionary<string, string> BrokerageData { get; }
+        public override Dictionary<string, string> BrokerageData => new()
+        {
+            { "dydx-address", Config.Get("dydx-address") },
+            { "dydx-node-api-url", Config.Get("dydx-node-api-url") }
+        };
 
         /// <summary>
         /// Initializes a new instance of the <see cref="dYdXBrokerageFactory"/> class
@@ -60,7 +67,23 @@ namespace QuantConnect.Brokerages.dYdX
         /// <returns>A new brokerage instance</returns>
         public override IBrokerage CreateBrokerage(LiveNodePacket job, IAlgorithm algorithm)
         {
-            throw new NotImplementedException();
+            var errors = new List<string>();
+            var address = Read<string>(job.BrokerageData, "dydx-address", errors);
+            var nodeUrl = Read<string>(job.BrokerageData, "dydx-node-api-url", errors);
+
+            if (errors.Count != 0)
+            {
+                // if we had errors then we can't create the instance
+                throw new ArgumentException(string.Join(Environment.NewLine, errors));
+            }
+
+            var aggregator = Composer.Instance.GetExportedValueByTypeName<IDataAggregator>(
+                Config.Get("data-aggregator", "QuantConnect.Lean.Engine.DataFeeds.AggregationManager"),
+                forceTypeNameOnExisting: false);
+            var brokerage = new dYdXBrokerage(address, nodeUrl, algorithm, aggregator, job);
+            Composer.Instance.AddPart<IDataQueueHandler>(brokerage);
+
+            return brokerage;
         }
 
         /// <summary>

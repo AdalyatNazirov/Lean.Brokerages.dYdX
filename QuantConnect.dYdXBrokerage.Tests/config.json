@@ -1,3 +1,7 @@
 {
-  "data-folder": "../../../../Lean/Data/"
+  "data-folder": "../../../../Lean/Data/",
+
+  // dydx configuration
+  "dydx-address": "dydx14zzueazeh0hj67cghhf9jypslcf9sh2n5k6art", //DYDX_TEST_ADDRESS
+  "dydx-node-api-url": "https://test-dydx-rest.kingnodes.com"
 }
