@@ -11,17 +11,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 using System;
 using System.Linq;
 using NUnit.Framework;
 using QuantConnect.Brokerages.dYdX;
+using QuantConnect.Configuration;
 using QuantConnect.Data;
 using QuantConnect.Tests;
 using QuantConnect.Logging;
 using QuantConnect.Securities;
 using QuantConnect.Data.Market;
+using QuantConnect.Lean.Engine.DataFeeds;
 using QuantConnect.Lean.Engine.HistoricalData;
 
 namespace QuantConnect.Brokerages.dYdX.Tests
@@ -57,11 +59,12 @@ namespace QuantConnect.Brokerages.dYdX.Tests
         }
 
         [Test, TestCaseSource(nameof(TestParameters))]
-        public void GetsHistory(Symbol symbol, Resolution resolution, TimeSpan period, TickType tickType, Type dataType, bool throwsException)
+        public void GetsHistory(Symbol symbol, Resolution resolution, TimeSpan period, TickType tickType, Type dataType,
+            bool throwsException)
         {
             TestDelegate test = () =>
             {
-                var brokerage = new dYdXBrokerage(null);
+                var brokerage = CreateBrokerage();
 
                 var historyProvider = new BrokerageHistoryProvider();
                 historyProvider.SetBrokerage(brokerage);
@@ -127,6 +130,24 @@ namespace QuantConnect.Brokerages.dYdX.Tests
             else
             {
                 Assert.DoesNotThrow(test);
+            }
+
+            Brokerage CreateBrokerage()
+            {
+                var address = Config.Get("dydx-address");
+                var subaccountNumber = Config.GetInt("dydx-subaccount-number");
+                var nodeUrl = Config.Get("dydx-node-api-url");
+                var indexerUrl = Config.Get("dydx-indexer-api-url");
+
+                return new dYdXBrokerage(
+                    address,
+                    subaccountNumber,
+                    nodeUrl,
+                    indexerUrl,
+                    null,
+                    new AggregationManager(),
+                    null
+                );
             }
         }
     }
