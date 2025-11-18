@@ -50,6 +50,12 @@ namespace QuantConnect.Brokerages.dYdX.ToolBox
                 {
                     continue;
                 }
+                // TODO: handle ticker with comma, i.e. https://dydx.trade/trade/FARTCOIN,RAYDIUM,9BB6NFECJBCTNNLFKO2FQVQBQ8HHM13KCYYCDQBGPUMP-USD
+                // For now, we skip them as SymbolPropertiesDatabase doesn't support csv values with ','
+                if (symbol.Ticker.Contains(","))
+                {
+                    continue;
+                }
 
                 var contractSize = 1;
                 var assets = symbol.Ticker.Split("-");
