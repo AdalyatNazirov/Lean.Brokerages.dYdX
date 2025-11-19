@@ -33,6 +33,8 @@ namespace QuantConnect.Brokerages.dYdX.Tests
 
         protected override IBrokerage CreateBrokerage(IOrderProvider orderProvider, ISecurityProvider securityProvider)
         {
+            var privateKey = Config.Get("dydx-private-key-hex");
+            var mnemonic = Config.Get("dydx-mnemonic");
             var address = Config.Get("dydx-address");
             var subaccountNumber = Config.GetInt("dydx-subaccount-number");
             var nodeUrl = Config.Get("dydx-node-api-url");
@@ -40,6 +42,8 @@ namespace QuantConnect.Brokerages.dYdX.Tests
 
             IAlgorithm algorithm = Mock.Of<IAlgorithm>();
             return new dYdXBrokerage(
+                privateKey,
+                mnemonic,
                 address,
                 subaccountNumber,
                 nodeUrl,
@@ -70,7 +74,8 @@ namespace QuantConnect.Brokerages.dYdX.Tests
             yield return new TestCaseData(new StopLimitOrderTestParameters(Symbols.BTCUSD, 10000m, 0.01m));
             yield return new TestCaseData(new LimitIfTouchedOrderTestParameters(Symbols.BTCUSD, 10000m, 0.01m));
 
-            var optionSymbol = Symbol.CreateOption(Symbols.SPY, Market.USA, OptionStyle.American, OptionRight.Call, 200m, new DateTime(2029, 12, 19));
+            var optionSymbol = Symbol.CreateOption(Symbols.SPY, Market.USA, OptionStyle.American, OptionRight.Call,
+                200m, new DateTime(2029, 12, 19));
             yield return new TestCaseData(new MarketOrderTestParameters(optionSymbol));
         }
 

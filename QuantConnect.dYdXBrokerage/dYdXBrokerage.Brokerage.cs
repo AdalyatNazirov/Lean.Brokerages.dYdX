@@ -3,6 +3,10 @@ using QuantConnect.Orders;
 using QuantConnect.Securities;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using Google.Protobuf;
+using Grpc.Net.Client;
+using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.Logging;
 
 namespace QuantConnect.Brokerages.dYdX;
@@ -89,7 +93,7 @@ public partial class dYdXBrokerage
     /// <returns>True if the request for a new order has been placed, false otherwise</returns>
     public override bool PlaceOrder(Order order)
     {
-        throw new NotImplementedException();
+        return ApiClient.PlaceOrder(order);
     }
 
     /// <summary>
