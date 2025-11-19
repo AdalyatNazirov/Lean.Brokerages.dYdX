@@ -10,11 +10,11 @@ public class dYdXApiClient
     private readonly dYdXIndexerClient _indexer;
     private readonly dYdXNodeClient _node;
 
-    public dYdXApiClient(Wallet wallet, string nodeApiUrl, string indexerApiUrl)
+    public dYdXApiClient(Wallet wallet, string nodeEndpointRest, string nodeEndpointGrpc, string indexerEndpointRest)
     {
         _wallet = wallet;
-        _indexer = new dYdXIndexerClient(indexerApiUrl);
-        _node = new dYdXNodeClient(_wallet, nodeApiUrl);
+        _indexer = new dYdXIndexerClient(indexerEndpointRest);
+        _node = new dYdXNodeClient(_wallet, nodeEndpointRest, nodeEndpointGrpc);
     }
 
     public dYdXAccountBalances GetCashBalance()
