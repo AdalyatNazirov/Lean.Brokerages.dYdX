@@ -43,8 +43,9 @@ namespace QuantConnect.Brokerages.dYdX
             { "dydx-mnemonic", Config.Get("dydx-mnemonic") },
             { "dydx-address", Config.Get("dydx-address") },
             { "dydx-subaccount-number", Config.Get("dydx-subaccount-number") },
-            { "dydx-node-api-url", Config.Get("dydx-node-api-url") },
-            { "dydx-indexer-api-url", Config.Get("dydx-indexer-api-url") }
+            { "dydx-node-api-rest", Config.Get("dydx-node-api-rest") },
+            { "dydx-node-api-grpc", Config.Get("dydx-node-api-grpc") },
+            { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest") }
         };
 
         /// <summary>
@@ -83,8 +84,9 @@ namespace QuantConnect.Brokerages.dYdX
 
             var address = Read<string>(job.BrokerageData, "dydx-address", errors);
             var subaccountNumber = Read<int>(job.BrokerageData, "dydx-subaccount-number", errors);
-            var nodeUrl = Read<string>(job.BrokerageData, "dydx-node-api-url", errors);
-            var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-url", errors);
+            var nodeRestUrl = Read<string>(job.BrokerageData, "dydx-node-api-rest", errors);
+            var nodeGrpcUrl = Read<string>(job.BrokerageData, "dydx-node-api-grpc", errors);
+            var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-rest", errors);
 
             if (errors.Count != 0)
             {
@@ -101,7 +103,8 @@ namespace QuantConnect.Brokerages.dYdX
                     mnemonic,
                     address,
                     subaccountNumber,
-                    nodeUrl,
+                    nodeRestUrl,
+                    nodeGrpcUrl,
                     indexerUrl,
                     algorithm,
                     aggregator, job);

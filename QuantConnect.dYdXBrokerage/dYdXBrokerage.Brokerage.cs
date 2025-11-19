@@ -3,10 +3,6 @@ using QuantConnect.Orders;
 using QuantConnect.Securities;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using Google.Protobuf;
-using Grpc.Net.Client;
-using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.Logging;
 
 namespace QuantConnect.Brokerages.dYdX;

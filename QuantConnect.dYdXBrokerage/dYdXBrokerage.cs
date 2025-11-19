@@ -59,8 +59,10 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// Creates a new instance
     /// </summary>
     /// <param name="aggregator">consolidate ticks</param>
-    public dYdXBrokerage(string privateKey, string mnemonic, string address, int subaccountNumber, string nodeUrl,
-        string indexerUrl,
+    public dYdXBrokerage(string privateKey, string mnemonic, string address, int subaccountNumber,
+        string nodeRestUrl,
+        string nodeGrpcUrl,
+        string indexerRestUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job) :
@@ -71,8 +73,9 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
             mnemonic,
             address,
             subaccountNumber,
-            nodeUrl,
-            indexerUrl,
+            nodeRestUrl,
+            nodeGrpcUrl,
+            indexerRestUrl,
             algorithm,
             aggregator,
             job);
@@ -96,8 +99,9 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string mnemonic,
         string address,
         int subaccountNumber,
-        string nodeUrl,
-        string indexerUrl,
+        string nodeRestUrl,
+        string nodeGrpcUrl,
+        string indexerRestUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job)
@@ -128,31 +132,31 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
                     throw new Exception("Address is missing");
                 }
 
-                var client = GetApiClient(wallet, nodeUrl, indexerUrl);
+                var client = GetApiClient(wallet, nodeRestUrl, nodeGrpcUrl, indexerRestUrl);
 
                 return client;
             });
         }
+    }
 
-        dYdXApiClient GetApiClient(Wallet wallet, string nodeUrl, string indexerUrl)
+    private dYdXApiClient GetApiClient(Wallet wallet, string nodeRestUrl, string nodeGrpcUrl, string indexerUrl)
+    {
+        return new dYdXApiClient(wallet, nodeRestUrl, nodeGrpcUrl, indexerUrl);
+    }
+
+    private Wallet BuildWallet(string privateKeyHex, string mnemonic, string address)
+    {
+        // if (!string.IsNullOrEmpty(mnemonic))
+        // {
+        //     return Wallet.FromMnemonic(mnemonic, address);
+        // }
+
+        if (!string.IsNullOrEmpty(privateKeyHex))
         {
-            return new dYdXApiClient(wallet, nodeUrl, indexerUrl);
+            return Wallet.FromPrivateKey(privateKeyHex, address);
         }
 
-        Wallet BuildWallet(string privateKeyHex, string mnemonic, string address)
-        {
-            // if (!string.IsNullOrEmpty(mnemonic))
-            // {
-            //     return Wallet.FromMnemonic(mnemonic, address);
-            // }
-
-            if (!string.IsNullOrEmpty(privateKeyHex))
-            {
-                return Wallet.FromPrivateKey(privateKeyHex, address);
-            }
-
-            return null;
-        }
+        return null;
     }
 
     #region IDataQueueHandler
