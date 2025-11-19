@@ -59,13 +59,23 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// Creates a new instance
     /// </summary>
     /// <param name="aggregator">consolidate ticks</param>
-    public dYdXBrokerage(string address, int subaccountNumber, string nodeUrl, string indexerUrl,
+    public dYdXBrokerage(string privateKey, string mnemonic, string address, int subaccountNumber, string nodeUrl,
+        string indexerUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job) :
         base(MarketName)
     {
-        Initialize(address, subaccountNumber, nodeUrl, indexerUrl, algorithm, aggregator, job);
+        Initialize(
+            privateKey,
+            mnemonic,
+            address,
+            subaccountNumber,
+            nodeUrl,
+            indexerUrl,
+            algorithm,
+            aggregator,
+            job);
 
         _subscriptionManager = new EventBasedDataQueueHandlerSubscriptionManager();
         _subscriptionManager.SubscribeImpl += (s, t) => Subscribe(s);
@@ -81,7 +91,13 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         // _connectionRateLimiter = new RateGate();
     }
 
-    private void Initialize(string address, int subaccountNumber, string nodeUrl, string indexerUrl,
+    private void Initialize(
+        string privateKeyHex,
+        string mnemonic,
+        string address,
+        int subaccountNumber,
+        string nodeUrl,
+        string indexerUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job)
@@ -96,6 +112,14 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         // can be null if dYdXBrokerage is used as DataQueueHandler only
         if (_algorithm != null)
         {
+            var wallet = BuildWallet(privateKeyHex, mnemonic, address);
+
+            if (wallet == null)
+            {
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, -1, "Mnemonic and PrivateKey"));
+                throw new Exception("Mnemonic and PrivateKey is missing");
+            }
+
             _apiClientLazy = new Lazy<dYdXApiClient>(() =>
             {
                 if (string.IsNullOrEmpty(address))
@@ -104,15 +128,30 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
                     throw new Exception("Address is missing");
                 }
 
-                var client = GetApiClient(address, nodeUrl, indexerUrl);
+                var client = GetApiClient(wallet, nodeUrl, indexerUrl);
 
                 return client;
             });
         }
 
-        dYdXApiClient GetApiClient(string address, string nodeUrl, string indexerUrl)
+        dYdXApiClient GetApiClient(Wallet wallet, string nodeUrl, string indexerUrl)
         {
-            return new dYdXApiClient(address, nodeUrl, indexerUrl);
+            return new dYdXApiClient(wallet, nodeUrl, indexerUrl);
+        }
+
+        Wallet BuildWallet(string privateKeyHex, string mnemonic, string address)
+        {
+            // if (!string.IsNullOrEmpty(mnemonic))
+            // {
+            //     return Wallet.FromMnemonic(mnemonic, address);
+            // }
+
+            if (!string.IsNullOrEmpty(privateKeyHex))
+            {
+                return Wallet.FromPrivateKey(privateKeyHex, address);
+            }
+
+            return null;
         }
     }
 

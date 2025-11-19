@@ -25,8 +25,39 @@
   <ItemGroup>
     <Compile Include="..\..\Lean\Common\Properties\SharedAssemblyInfo.cs" Link="Properties\SharedAssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup> 
+    <Protobuf Include="Protos\cosmos\base\abci\v1beta1\abci.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\base\query\v1beta1\pagination.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\base\v1beta1\coin.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\crypto\multisig\v1beta1\multisig.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\tx\signing\v1beta1\signing.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\tx\v1beta1\service.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\tx\v1beta1\tx.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos_proto\cosmos.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\gogoproto\gogo.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\google\api\annotations.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\google\api\http.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\abci\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\crypto\keys.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\crypto\proof.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\types\block.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\types\evidence.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\types\params.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\types\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\types\validator.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\version\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+  </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.30.2" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.70.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.71.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="QuantConnect.Brokerages" Version="2.5.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Protos\cosmos\crypto\" />
   </ItemGroup>
 </Project>
