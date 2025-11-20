@@ -26,10 +26,12 @@
     <Compile Include="..\..\Lean\Common\Properties\SharedAssemblyInfo.cs" Link="Properties\SharedAssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup> 
+    <Protobuf Include="Protos\amino\amino.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\base\abci\v1beta1\abci.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\base\query\v1beta1\pagination.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\base\v1beta1\coin.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\crypto\multisig\v1beta1\multisig.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\msg\v1\msg.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\tx\signing\v1beta1\signing.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\tx\v1beta1\service.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\tx\v1beta1\tx.proto" GrpcServices="Client" ProtoRoot="Protos\" />
@@ -46,6 +48,19 @@
     <Protobuf Include="Protos\tendermint\types\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\tendermint\types\validator.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\tendermint\version\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\block_rate_limit_config.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\clob_pair.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\equity_tier_limit_config.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\liquidations.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\liquidations_config.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\matches.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\operation.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\order.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\order_removals.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\clob\tx.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\subaccounts\asset_position.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\subaccounts\perpetual_position.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\dydxprotocol\subaccounts\subaccount.proto" GrpcServices="Client" ProtoRoot="Protos\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.30.2" />

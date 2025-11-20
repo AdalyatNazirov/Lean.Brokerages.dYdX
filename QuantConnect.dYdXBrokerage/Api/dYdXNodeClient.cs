@@ -1,10 +1,15 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using Google.Protobuf;
+using Google.Protobuf.Collections;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx;
-using QuantConnect.Orders;
+using QuantConnect.dYdXBrokerage.dYdXProtocol.Clob;
+using QuantConnect.dYdXBrokerage.dYdXProtocol.Subaccounts;
+using Order = QuantConnect.Orders.Order;
 
 namespace QuantConnect.Brokerages.dYdX.Api;
 
@@ -46,13 +51,53 @@ public class dYdXNodeClient
         var channel = GrpcChannel.ForAddress(uri, _grpcChannelOptions);
         var service = new Service.ServiceClient(channel);
 
-        var txBytes = ByteString.FromBase64(
-            "CrMBCnMKIC9keWR4cHJvdG9jb2wuY2xvYi5Nc2dQbGFjZU9yZGVyEk8KTQo4Ci0KK2R5ZHgxNHp6dWVhemVoMGhqNjdjZ2hoZjlqeXBzbGNmOXNoMm41azZhcnQVRfCukxhAIAEQAhiAreIEIICgvoGVATW1NR5pEg5DbGllbnQgRXhhbXBsZfp/KwolL2R5ZHhwcm90b2NvbC5hY2NvdW50cGx1cy5UeEV4dGVuc2lvbhICCgASWQpRCkYKHy9jb3Ntb3MuY3J5cHRvLnNlY3AyNTZrMS5QdWJLZXkSIwohA/C+dj94G1tZ68N9chvtqRMUilOUJbqnILl9SCD2Uu11EgQKAggBGNlzEgQQwIQ9GkDKXoLiTm9zKOHtDnXKNY/Y6mi8jxfaopo2PhyMK7xwXg4DnG9hxMIqFQWXOFfJ5m/qzemTnoLOcjFq9zVfknXd");
+        // place order
+
+        var txBody = BuildOrderBodyTxBody();
+
+        var txRaw = new TxRaw()
+        {
+            BodyBytes = txBody.ToByteString(),
+            AuthInfoBytes =
+                ByteString.FromBase64(
+                    "ClEKRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiED8L52P3gbW1nrw31yG+2pExSKU5QluqcguX1IIPZS7XUSBAoCCAEY53MSBBDAhD0=")
+        };
+        txRaw.Signatures.Add(ByteString.FromBase64(
+            "O9dM9FwltZiAXq3yA5A67cQ3uf3QktcfpNGDxcEu1xBcpvGWGSt01uqYTfZ+2eg/T+xvbob4nEPFXYg/Llw+kw=="));
 
         var response = service.BroadcastTx(new BroadcastTxRequest()
         {
-            TxBytes = txBytes, Mode = BroadcastMode.Sync
+            TxBytes = txRaw.ToByteString(), Mode = BroadcastMode.Sync
         });
+
         return true;
+    }
+
+    private TxBody BuildOrderBodyTxBody()
+    {
+        var txBody = new TxBody();
+        var orderProto = new QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order
+        {
+            OrderId = new OrderId()
+            {
+                SubaccountId = new SubaccountId { Owner = _wallet.Address, Number = 0 },
+                ClientId = 90651682,
+                OrderFlags = 64,
+                ClobPairId = 1
+            },
+            Side = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.Side.Sell,
+            Quantums = 10000000,
+            Subticks = 40000000000,
+            GoodTilBlockTime = 1763671053,
+            TimeInForce = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.TimeInForce.Unspecified,
+            ReduceOnly = false,
+            ClientMetadata = 0,
+            ConditionType = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.ConditionType.Unspecified,
+            ConditionalOrderTriggerSubticks = 0
+        };
+        var msgPlaceOrder = new MsgPlaceOrder { Order = orderProto };
+        var msg = new Any { TypeUrl = "/dydxprotocol.clob.MsgPlaceOrder", Value = msgPlaceOrder.ToByteString() };
+        txBody.Messages.Add(msg);
+        return txBody;
     }
 }
