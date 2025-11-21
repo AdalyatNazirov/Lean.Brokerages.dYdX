@@ -5,30 +5,32 @@ namespace QuantConnect.Brokerages.dYdX.Api;
 
 public class dYdXApiClient
 {
-    private readonly Wallet _wallet;
-
     private readonly dYdXIndexerClient _indexer;
     private readonly dYdXNodeClient _node;
 
-    public dYdXApiClient(Wallet wallet, string nodeEndpointRest, string nodeEndpointGrpc, string indexerEndpointRest)
+    public dYdXApiClient(string nodeEndpointRest, string nodeEndpointGrpc, string indexerEndpointRest)
     {
-        _wallet = wallet;
         _indexer = new dYdXIndexerClient(indexerEndpointRest);
-        _node = new dYdXNodeClient(_wallet, nodeEndpointRest, nodeEndpointGrpc);
+        _node = new dYdXNodeClient(nodeEndpointRest, nodeEndpointGrpc);
     }
 
-    public dYdXAccountBalances GetCashBalance()
+    public dYdXAccount GetAccount(string address)
     {
-        return _node.GetCashBalance();
+        return _node.GetAccount(address);
     }
 
-    public dYdXPerpetualPositionsResponse GetOpenPerpetualPositions(int subaccountNumber)
+    public dYdXAccountBalances GetCashBalance(Wallet wallet)
     {
-        return _indexer.GetPerpetualPositions(_wallet.Address, subaccountNumber, "OPEN");
+        return _node.GetCashBalance(wallet);
     }
 
-    public bool PlaceOrder(Order order)
+    public dYdXPerpetualPositionsResponse GetOpenPerpetualPositions(Wallet wallet)
     {
-        return _node.PlaceOrder(order);
+        return _indexer.GetPerpetualPositions(wallet, "OPEN");
+    }
+
+    public bool PlaceOrder(Wallet wallet, Order order)
+    {
+        return _node.PlaceOrder(wallet, order);
     }
 }
