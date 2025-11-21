@@ -31,7 +31,7 @@ public partial class dYdXBrokerage
         // This can be extended to support multiple subaccounts if needed.
         try
         {
-            var positionsResponse = ApiClient.GetOpenPerpetualPositions(_subaccountNumber);
+            var positionsResponse = ApiClient.GetOpenPerpetualPositions(Wallet);
             var holdings = new List<Holding>();
 
             if (positionsResponse?.Positions == null)
@@ -75,7 +75,7 @@ public partial class dYdXBrokerage
     /// <returns>The current cash balance for each currency available for trading</returns>
     public override List<CashAmount> GetCashBalance()
     {
-        var balances = ApiClient.GetCashBalance();
+        var balances = ApiClient.GetCashBalance(Wallet);
         return balances
             .Balances
             .Select(b => new CashAmount(b.Amount, b.Denom.LazyToUpper()))
@@ -89,7 +89,7 @@ public partial class dYdXBrokerage
     /// <returns>True if the request for a new order has been placed, false otherwise</returns>
     public override bool PlaceOrder(Order order)
     {
-        return ApiClient.PlaceOrder(order);
+        return ApiClient.PlaceOrder(Wallet, order);
     }
 
     /// <summary>

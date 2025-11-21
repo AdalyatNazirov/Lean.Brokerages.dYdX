@@ -28,7 +28,6 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     private const string MarketName = Market.dYdX;
     private const SecurityType SecurityType = QuantConnect.SecurityType.CryptoFuture;
 
-    private int _subaccountNumber;
     private IAlgorithm _algorithm;
     private IDataAggregator _aggregator;
     private LiveNodePacket _job;
@@ -37,10 +36,12 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
 
     private Lazy<dYdXApiClient> _apiClientLazy;
 
+    private Wallet Wallet { get; set; }
+
     /// <summary>
     /// API client
     /// </summary>
-    protected dYdXApiClient ApiClient => _apiClientLazy.Value;
+    private dYdXApiClient ApiClient => _apiClientLazy.Value;
 
     /// <summary>
     /// Returns true if we're currently connected to the broker
@@ -109,21 +110,12 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         _job = job;
         _algorithm = algorithm;
         _aggregator = aggregator;
-        _subaccountNumber = subaccountNumber;
 
         _symbolMapper = new SymbolPropertiesDatabaseSymbolMapper(MarketName);
 
         // can be null if dYdXBrokerage is used as DataQueueHandler only
         if (_algorithm != null)
         {
-            var wallet = BuildWallet(privateKeyHex, mnemonic, address);
-
-            if (wallet == null)
-            {
-                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, -1, "Mnemonic and PrivateKey"));
-                throw new Exception("Mnemonic and PrivateKey is missing");
-            }
-
             _apiClientLazy = new Lazy<dYdXApiClient>(() =>
             {
                 if (string.IsNullOrEmpty(address))
@@ -132,28 +124,42 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
                     throw new Exception("Address is missing");
                 }
 
-                var client = GetApiClient(wallet, nodeRestUrl, nodeGrpcUrl, indexerRestUrl);
+                var client = GetApiClient(nodeRestUrl, nodeGrpcUrl, indexerRestUrl);
 
                 return client;
             });
+
+            var wallet = BuildWallet(ApiClient, privateKeyHex, mnemonic, address, subaccountNumber);
+
+            if (wallet == null)
+            {
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, -1, "Mnemonic and PrivateKey"));
+                throw new Exception("Mnemonic and PrivateKey is missing");
+            }
+
+            Wallet = wallet;
         }
     }
 
-    private dYdXApiClient GetApiClient(Wallet wallet, string nodeRestUrl, string nodeGrpcUrl, string indexerUrl)
+    private dYdXApiClient GetApiClient(string nodeRestUrl, string nodeGrpcUrl, string indexerUrl)
     {
-        return new dYdXApiClient(wallet, nodeRestUrl, nodeGrpcUrl, indexerUrl);
+        return new dYdXApiClient(nodeRestUrl, nodeGrpcUrl, indexerUrl);
     }
 
-    private Wallet BuildWallet(string privateKeyHex, string mnemonic, string address)
+    private Wallet BuildWallet(dYdXApiClient apiClient,
+        string privateKeyHex,
+        string mnemonic,
+        string address,
+        int subaccountNumber)
     {
-        // if (!string.IsNullOrEmpty(mnemonic))
-        // {
-        //     return Wallet.FromMnemonic(mnemonic, address);
-        // }
-
         if (!string.IsNullOrEmpty(privateKeyHex))
         {
-            return Wallet.FromPrivateKey(privateKeyHex, address);
+            return Wallet.FromPrivateKey(apiClient, privateKeyHex, address, subaccountNumber);
+        }
+
+        if (!string.IsNullOrEmpty(mnemonic))
+        {
+            return Wallet.FromMnemonic(apiClient, mnemonic, address, subaccountNumber);
         }
 
         return null;

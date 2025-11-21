@@ -15,6 +15,12 @@
 
 
 using System;
+using System.Linq;
+using Org.BouncyCastle.Asn1.Sec;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
+using Org.BouncyCastle.Math;
+using QuantConnect.Brokerages.dYdX.Api;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -29,16 +35,22 @@ public class Wallet
     public string PrivateKey { get; set; }
 
     public string Address { get; set; }
+    public ulong AccountNumber { get; set; }
+    public int SubaccountNumber { get; set; }
+    public ulong Sequence { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the Wallet class
     /// </summary>
     /// <param name="privateKey">The private key for the wallet. Can be null if constructing from mnemonic.</param>
     /// <param name="address">The address associated with the mnemonic</param>
-    private Wallet(string privateKey, string address)
+    private Wallet(string privateKey, string address, ulong accountNumber, int subaccountNumber, ulong sequence)
     {
         Address = address;
         PrivateKey = privateKey;
+        AccountNumber = accountNumber;
+        SubaccountNumber = subaccountNumber;
+        Sequence = sequence;
     }
 
     /// <summary>
@@ -46,9 +58,10 @@ public class Wallet
     /// </summary>
     /// <param name="mnemonic">The mnemonic phrase (12, 15, 18, 21, or 24 words)</param>
     /// <param name="address">The address associated with the mnemonic</param>
+    /// <param name="subaccountNumber">The subaccount number to use for this wallet</param>
     /// <returns>A new Wallet instance</returns>
     /// <exception cref="ArgumentException">Thrown when mnemonic is null, empty, or whitespace</exception>
-    public static Wallet FromMnemonic(string mnemonic, string address)
+    public static Wallet FromMnemonic(dYdXApiClient apiClient, string mnemonic, string address, int subaccountNumber)
     {
         if (string.IsNullOrWhiteSpace(mnemonic))
         {
@@ -56,28 +69,71 @@ public class Wallet
         }
 
         var privateKeyHex = PrivateKeyHexFromMnemonic(mnemonic);
-        return new Wallet(privateKeyHex, address);
+        return FromPrivateKey(apiClient, privateKeyHex, address, subaccountNumber);
     }
 
     /// <summary>
     /// Creates a wallet from an existing private key
     /// </summary>
+    /// <param name="apiClient">The dYdX API client</param>
     /// <param name="privateKeyHex">The hexadecimal private key string</param>
+    /// <param name="address">The address associated with the mnemonic</param>
+    /// <param name="subaccountNumber">The subaccount number to use for this wallet</param>
     /// <returns>A new Wallet instance initialized with the provided private key</returns>
     /// <exception cref="ArgumentException">Thrown when privateKey is null, empty, or whitespace</exception>
-    public static Wallet FromPrivateKey(string privateKeyHex, string address)
+    public static Wallet FromPrivateKey(dYdXApiClient apiClient,
+        string privateKeyHex,
+        string address,
+        int subaccountNumber)
     {
         if (string.IsNullOrWhiteSpace(privateKeyHex))
         {
             throw new ArgumentException("Private key cannot be null or empty", nameof(privateKeyHex));
         }
 
-        return new Wallet(privateKeyHex, address);
+        var account = apiClient.GetAccount(address);
+
+        return new Wallet(privateKeyHex, address, account.AccountNumber, subaccountNumber, account.Sequence);
     }
 
     private static string PrivateKeyHexFromMnemonic(string mnemonicPhrase)
     {
         // TODO: Implement BIP39 mnemonic to private key derivation
         throw new NotImplementedException();
+    }
+
+    public byte[] Sign(byte[] signDocBytes)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        byte[] messageHash32 = sha256.ComputeHash(signDocBytes);
+
+        var privateKey32 = Convert.FromHexString(PrivateKey);
+
+        // privateKey32: 32 bytes
+        var curve = SecNamedCurves.GetByName("secp256k1");
+        var domain = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
+        var d = new BigInteger(1, privateKey32);
+        var priv = new ECPrivateKeyParameters(d, domain);
+
+        var signer = new ECDsaSigner();
+        signer.Init(true, priv);
+        var rs = signer.GenerateSignature(messageHash32); // r, s as BigInteger
+
+        BigInteger r = rs[0];
+        BigInteger s = rs[1];
+
+        // enforce low-s (s = min(s, n - s))
+        if (s.CompareTo(domain.N.ShiftRight(1)) > 0)
+            s = domain.N.Subtract(s);
+
+        byte[] rBytes = r.ToByteArrayUnsigned();
+        byte[] sBytes = s.ToByteArrayUnsigned();
+
+        byte[] rPadded = new byte[32];
+        byte[] sPadded = new byte[32];
+        Buffer.BlockCopy(rBytes, 0, rPadded, 32 - rBytes.Length, rBytes.Length);
+        Buffer.BlockCopy(sBytes, 0, sPadded, 32 - sBytes.Length, sBytes.Length);
+
+        return rPadded.Concat(sPadded).ToArray(); // 64 bytes r||s
     }
 }
