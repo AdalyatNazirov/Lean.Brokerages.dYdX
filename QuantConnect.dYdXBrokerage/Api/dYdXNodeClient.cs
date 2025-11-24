@@ -1,8 +1,7 @@
 using System;
 using QuantConnect.Brokerages.dYdX.Models;
-using QuantConnect.Brokerages.Template.Api;
 
-namespace QuantConnect.Brokerages.dYdX;
+namespace QuantConnect.Brokerages.dYdX.Api;
 
 public class dYdXNodeClient(string baseUrl)
 {

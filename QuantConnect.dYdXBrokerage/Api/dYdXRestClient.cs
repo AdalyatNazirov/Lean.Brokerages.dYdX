@@ -6,7 +6,7 @@ using QuantConnect.Logging;
 using QuantConnect.Util;
 using RestSharp;
 
-namespace QuantConnect.Brokerages.Template.Api;
+namespace QuantConnect.Brokerages.dYdX.Api;
 
 public class dYdXRestClient(string baseUrl) : IDisposable
 {

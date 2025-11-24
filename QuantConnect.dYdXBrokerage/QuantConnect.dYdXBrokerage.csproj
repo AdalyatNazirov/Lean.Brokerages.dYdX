@@ -4,8 +4,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <TargetFramework>net9.0</TargetFramework>
     <Product>QuantConnect.Brokerages.Template</Product>
-    <AssemblyName>QuantConnect.Brokerages.Template</AssemblyName>
-    <RootNamespace>QuantConnect.Brokerages.Template</RootNamespace>
+    <AssemblyName>QuantConnect.Brokerages.dYdX</AssemblyName>
+    <RootNamespace>QuantConnect.Brokerages.dYdX</RootNamespace>
     <AssemblyTitle>QuantConnect.Brokerages.Template</AssemblyTitle>
     <OutputType>Library</OutputType>
     <OutputPath>bin\$(Configuration)\</OutputPath>
