@@ -150,11 +150,13 @@ namespace QuantConnect.Brokerages.dYdX.Tests
                 var nodeUrlRest = Config.Get("dydx-node-api-rest");
                 var nodeUrlGrpc = Config.Get("dydx-node-api-grpc");
                 var indexerUrlRest = Config.Get("dydx-indexer-api-rest");
+                var chainId = Config.Get("dydx-chain-id");
 
                 return new dYdXBrokerage(
                     privateKey,
                     mnemonic,
                     address,
+                    chainId,
                     subaccountNumber,
                     nodeUrlRest,
                     nodeUrlGrpc,

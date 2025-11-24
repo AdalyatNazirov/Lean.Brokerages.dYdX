@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using Cosmos.Crypto.Secp256K1;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
@@ -70,7 +71,7 @@ public class dYdXNodeClient
             BodyBytes = txBody.ToByteString(),
             AuthInfoBytes = authInfo.ToByteString(),
             AccountNumber = wallet.AccountNumber,
-            ChainId = "dydx-testnet-4"
+            ChainId = wallet.ChainId
         };
 
         byte[] signatureBytes = wallet.Sign(signdoc.ToByteArray());
@@ -122,14 +123,14 @@ public class dYdXNodeClient
         var pubKey = new PubKey
         {
             // Assuming _wallet.PublicKey is the raw compressed 33-byte public key
-            Key = ByteString.FromBase64("A/C+dj94G1tZ68N9chvtqRMUilOUJbqnILl9SCD2Uu11")
+            Key = ByteString.FromBase64(wallet.PublicKey)
         };
 
         var signerInfo = new SignerInfo
         {
             PublicKey = new Any
             {
-                TypeUrl = "/cosmos.crypto.secp256k1.PubKey",
+                TypeUrl = wallet.PublicKeyType,
                 Value = pubKey.ToByteString()
             },
             ModeInfo = new ModeInfo

@@ -32,45 +32,69 @@ public class Wallet
     /// <summary>
     /// Gets or sets the private key for the wallet
     /// </summary>
-    public string PrivateKey { get; set; }
+    private string PrivateKey { get; }
 
-    public string Address { get; set; }
-    public ulong AccountNumber { get; set; }
-    public int SubaccountNumber { get; set; }
-    public ulong Sequence { get; set; }
+    public string PublicKey { get; }
+    public string PublicKeyType { get; }
+    public string Address { get; }
+    public ulong AccountNumber { get; }
+    public int SubaccountNumber { get; }
+    public ulong Sequence { get; }
+    public string ChainId { get; }
 
     /// <summary>
     /// Initializes a new instance of the Wallet class
     /// </summary>
-    /// <param name="privateKey">The private key for the wallet. Can be null if constructing from mnemonic.</param>
-    /// <param name="address">The address associated with the mnemonic</param>
-    private Wallet(string privateKey, string address, ulong accountNumber, int subaccountNumber, ulong sequence)
+    /// <param name="privateKey">The private key for the wallet</param>
+    /// <param name="publicKey">The public key for the wallet</param>
+    /// <param name="publicKeyType">The public key type for the wallet</param>
+    /// <param name="address">The address associated with the wallet</param>
+    /// <param name="accountNumber">The account number for the wallet</param>
+    /// <param name="subaccountNumber">The subaccount number for the wallet</param>
+    /// <param name="sequence">The sequence number for the wallet</param>
+    /// <param name="chainId">The chain ID for the wallet</param>
+    private Wallet(string privateKey,
+        string publicKey,
+        string publicKeyType,
+        string address,
+        ulong accountNumber,
+        int subaccountNumber,
+        ulong sequence,
+        string chainId)
     {
-        Address = address;
         PrivateKey = privateKey;
+        PublicKey = publicKey;
+        PublicKeyType = publicKeyType;
+        Address = address;
         AccountNumber = accountNumber;
         SubaccountNumber = subaccountNumber;
         Sequence = sequence;
+        ChainId = chainId;
     }
 
     /// <summary>
     /// Creates a wallet from a BIP39 mnemonic phrase
     /// </summary>
+    /// <param name="apiClient">The dYdX API client</param>
     /// <param name="mnemonic">The mnemonic phrase (12, 15, 18, 21, or 24 words)</param>
     /// <param name="address">The address associated with the mnemonic</param>
+    /// <param name="chainId">Chain ID for the wallet</param>
     /// <param name="subaccountNumber">The subaccount number to use for this wallet</param>
     /// <returns>A new Wallet instance</returns>
     /// <exception cref="ArgumentException">Thrown when mnemonic is null, empty, or whitespace</exception>
-    public static Wallet FromMnemonic(dYdXApiClient apiClient, string mnemonic, string address, int subaccountNumber)
-    {
-        if (string.IsNullOrWhiteSpace(mnemonic))
-        {
-            throw new ArgumentException("Mnemonic cannot be null or empty", nameof(mnemonic));
-        }
-
-        var privateKeyHex = PrivateKeyHexFromMnemonic(mnemonic);
-        return FromPrivateKey(apiClient, privateKeyHex, address, subaccountNumber);
-    }
+    public static Wallet FromMnemonic(
+        dYdXApiClient apiClient,
+        string mnemonic,
+        string address,
+        string chainId,
+        int subaccountNumber)
+        => Builder
+            .Create(apiClient)
+            .FromMnemonic(mnemonic)
+            .WithAddress(address)
+            .WithChainId(chainId)
+            .WithSubaccount(subaccountNumber)
+            .Build();
 
     /// <summary>
     /// Creates a wallet from an existing private key
@@ -78,23 +102,22 @@ public class Wallet
     /// <param name="apiClient">The dYdX API client</param>
     /// <param name="privateKeyHex">The hexadecimal private key string</param>
     /// <param name="address">The address associated with the mnemonic</param>
+    /// <param name="chainId">Chain ID for the wallet</param>
     /// <param name="subaccountNumber">The subaccount number to use for this wallet</param>
     /// <returns>A new Wallet instance initialized with the provided private key</returns>
     /// <exception cref="ArgumentException">Thrown when privateKey is null, empty, or whitespace</exception>
     public static Wallet FromPrivateKey(dYdXApiClient apiClient,
         string privateKeyHex,
         string address,
+        string chainId,
         int subaccountNumber)
-    {
-        if (string.IsNullOrWhiteSpace(privateKeyHex))
-        {
-            throw new ArgumentException("Private key cannot be null or empty", nameof(privateKeyHex));
-        }
-
-        var account = apiClient.GetAccount(address);
-
-        return new Wallet(privateKeyHex, address, account.AccountNumber, subaccountNumber, account.Sequence);
-    }
+        => Builder
+            .Create(apiClient)
+            .FromPrivateKey(privateKeyHex)
+            .WithAddress(address)
+            .WithChainId(chainId)
+            .WithSubaccount(subaccountNumber)
+            .Build();
 
     private static string PrivateKeyHexFromMnemonic(string mnemonicPhrase)
     {
@@ -135,5 +158,116 @@ public class Wallet
         Buffer.BlockCopy(sBytes, 0, sPadded, 32 - sBytes.Length, sBytes.Length);
 
         return rPadded.Concat(sPadded).ToArray(); // 64 bytes r||s
+    }
+
+    public class Builder
+    {
+        private readonly dYdXApiClient _apiClient;
+
+        private string _privateKeyHex;
+        private string _publicKeyHex;
+        private string _publicKeyType;
+        private string _mnemonic;
+        private string _address;
+        private string _chainId;
+        private int _subaccountNumber;
+
+        private Builder(dYdXApiClient apiClient)
+        {
+            _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+        }
+
+        public static Builder Create(dYdXApiClient apiClient)
+            => new Builder(apiClient);
+
+        public Builder FromMnemonic(string mnemonic)
+        {
+            if (string.IsNullOrWhiteSpace(mnemonic))
+                throw new ArgumentException("Mnemonic cannot be null or empty", nameof(mnemonic));
+
+            _mnemonic = mnemonic;
+            _privateKeyHex = null; // clear conflicting state
+            _privateKeyHex = null; // clear conflicting state
+            return this;
+        }
+
+        public Builder FromPrivateKey(string privateKeyHex)
+        {
+            if (string.IsNullOrWhiteSpace(privateKeyHex))
+                throw new ArgumentException("Private key cannot be null or empty", nameof(privateKeyHex));
+
+            _privateKeyHex = privateKeyHex;
+            _mnemonic = null; // clear conflicting state
+            return this;
+        }
+
+        public Builder WithAddress(string address)
+        {
+            if (string.IsNullOrWhiteSpace(address))
+                throw new ArgumentException("Address cannot be null or empty", nameof(address));
+
+            _address = address;
+            return this;
+        }
+
+        public Builder WithSubaccount(int subaccountNumber)
+        {
+            _subaccountNumber = subaccountNumber;
+            return this;
+        }
+
+        public Builder WithChainId(string chainId)
+        {
+            _chainId = chainId;
+            return this;
+        }
+
+        public Builder WithPublicKey(string publicKeyHex)
+        {
+            _publicKeyHex = publicKeyHex;
+            return this;
+        }
+
+        public Builder WithPublicKeyType(string publicKeyType)
+        {
+            _publicKeyType = publicKeyType;
+            return this;
+        }
+
+        public Wallet Build()
+        {
+            if (string.IsNullOrWhiteSpace(_address))
+                throw new InvalidOperationException("Address must be specified");
+
+            // derive private key if needed
+            string privateKeyHex = _privateKeyHex;
+            if (privateKeyHex == null && _mnemonic != null)
+            {
+                privateKeyHex = PrivateKeyHexFromMnemonic(_mnemonic);
+            }
+
+            if (string.IsNullOrWhiteSpace(privateKeyHex))
+                throw new InvalidOperationException("Private key or mnemonic must be provided");
+
+            var account = _apiClient.GetAccount(_address);
+
+            return new Wallet(
+                privateKeyHex,
+                _publicKeyHex ?? account.PublicKey.Key,
+                _publicKeyType ?? account.PublicKey.Type,
+                _address,
+                account.AccountNumber,
+                _subaccountNumber,
+                account.Sequence,
+                _chainId
+            );
+        }
+
+        // if you want to reuse the Wallet's method, make this internal in Wallet and call it
+        private static string PrivateKeyHexFromMnemonic(string mnemonicPhrase)
+        {
+            // TODO: Implement BIP39 mnemonic to private key derivation
+            throw new NotImplementedException();
+        }
     }
 }

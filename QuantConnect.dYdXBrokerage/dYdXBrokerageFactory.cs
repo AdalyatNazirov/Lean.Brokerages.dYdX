@@ -45,7 +45,8 @@ namespace QuantConnect.Brokerages.dYdX
             { "dydx-subaccount-number", Config.Get("dydx-subaccount-number") },
             { "dydx-node-api-rest", Config.Get("dydx-node-api-rest") },
             { "dydx-node-api-grpc", Config.Get("dydx-node-api-grpc") },
-            { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest") }
+            { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest") },
+            { "dydx-chain-id", Config.Get("dydx-chain-id") }
         };
 
         /// <summary>
@@ -87,6 +88,7 @@ namespace QuantConnect.Brokerages.dYdX
             var nodeRestUrl = Read<string>(job.BrokerageData, "dydx-node-api-rest", errors);
             var nodeGrpcUrl = Read<string>(job.BrokerageData, "dydx-node-api-grpc", errors);
             var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-rest", errors);
+            var chainId = Read<string>(job.BrokerageData, "dydx-chain-id", errors);
 
             if (errors.Count != 0)
             {
@@ -102,6 +104,7 @@ namespace QuantConnect.Brokerages.dYdX
                     privateKey,
                     mnemonic,
                     address,
+                    chainId,
                     subaccountNumber,
                     nodeRestUrl,
                     nodeGrpcUrl,

@@ -18,6 +18,7 @@ using QuantConnect.Data;
 using QuantConnect.Packets;
 using QuantConnect.Interfaces;
 using System.Collections.Generic;
+using Google.Protobuf.WellKnownTypes;
 using QuantConnect.Brokerages.dYdX.Api;
 
 namespace QuantConnect.Brokerages.dYdX;
@@ -59,8 +60,18 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// <summary>
     /// Creates a new instance
     /// </summary>
-    /// <param name="aggregator">consolidate ticks</param>
-    public dYdXBrokerage(string privateKey, string mnemonic, string address, int subaccountNumber,
+    /// <param name="privateKey">The private key for the wallet</param>
+    /// <param name="mnemonic">The mnemonic phrase (12, 15, 18, 21, or 24 words)</param>
+    /// <param name="address">The address associated with the mnemonic</param>
+    /// <param name="chainId">Chain ID for the wallet</param>
+    /// <param name="subaccountNumber">The subaccount number to use for this wallet</param>
+    /// <param name="nodeRestUrl">The REST URL of the node to connect to</param>
+    /// <param name="nodeGrpcUrl">The gRPC URL of the node to connect to</param>
+    /// <param name="indexerRestUrl">The REST URL of the indexer to connect to</param>
+    /// <param name="algorithm">The algorithm instance</param>
+    /// <param name="aggregator">The aggregator instance</param>
+    /// <param name="job">The live node packet</param>
+    public dYdXBrokerage(string privateKey, string mnemonic, string address, string chainId, int subaccountNumber,
         string nodeRestUrl,
         string nodeGrpcUrl,
         string indexerRestUrl,
@@ -73,6 +84,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
             privateKey,
             mnemonic,
             address,
+            chainId,
             subaccountNumber,
             nodeRestUrl,
             nodeGrpcUrl,
@@ -99,6 +111,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string privateKeyHex,
         string mnemonic,
         string address,
+        string chainId,
         int subaccountNumber,
         string nodeRestUrl,
         string nodeGrpcUrl,
@@ -129,7 +142,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
                 return client;
             });
 
-            var wallet = BuildWallet(ApiClient, privateKeyHex, mnemonic, address, subaccountNumber);
+            var wallet = BuildWallet(ApiClient, privateKeyHex, mnemonic, address, chainId, subaccountNumber);
 
             if (wallet == null)
             {
@@ -150,16 +163,17 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string privateKeyHex,
         string mnemonic,
         string address,
+        string chainId,
         int subaccountNumber)
     {
         if (!string.IsNullOrEmpty(privateKeyHex))
         {
-            return Wallet.FromPrivateKey(apiClient, privateKeyHex, address, subaccountNumber);
+            return Wallet.FromPrivateKey(apiClient, privateKeyHex, address, chainId, subaccountNumber);
         }
 
         if (!string.IsNullOrEmpty(mnemonic))
         {
-            return Wallet.FromMnemonic(apiClient, mnemonic, address, subaccountNumber);
+            return Wallet.FromMnemonic(apiClient, mnemonic, address, chainId, subaccountNumber);
         }
 
         return null;
