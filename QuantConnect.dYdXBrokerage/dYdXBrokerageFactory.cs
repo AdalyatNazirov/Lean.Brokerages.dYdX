@@ -84,7 +84,7 @@ namespace QuantConnect.Brokerages.dYdX
             }
 
             var address = Read<string>(job.BrokerageData, "dydx-address", errors);
-            var subaccountNumber = Read<int>(job.BrokerageData, "dydx-subaccount-number", errors);
+            var subaccountNumber = Read<uint>(job.BrokerageData, "dydx-subaccount-number", errors);
             var nodeRestUrl = Read<string>(job.BrokerageData, "dydx-node-api-rest", errors);
             var nodeGrpcUrl = Read<string>(job.BrokerageData, "dydx-node-api-grpc", errors);
             var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-rest", errors);

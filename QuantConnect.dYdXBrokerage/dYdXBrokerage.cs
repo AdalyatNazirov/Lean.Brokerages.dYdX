@@ -71,7 +71,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// <param name="algorithm">The algorithm instance</param>
     /// <param name="aggregator">The aggregator instance</param>
     /// <param name="job">The live node packet</param>
-    public dYdXBrokerage(string privateKey, string mnemonic, string address, string chainId, int subaccountNumber,
+    public dYdXBrokerage(string privateKey, string mnemonic, string address, string chainId, uint subaccountNumber,
         string nodeRestUrl,
         string nodeGrpcUrl,
         string indexerRestUrl,
@@ -112,7 +112,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string mnemonic,
         string address,
         string chainId,
-        int subaccountNumber,
+        uint subaccountNumber,
         string nodeRestUrl,
         string nodeGrpcUrl,
         string indexerRestUrl,
@@ -164,7 +164,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string mnemonic,
         string address,
         string chainId,
-        int subaccountNumber)
+        uint subaccountNumber)
     {
         if (!string.IsNullOrEmpty(privateKeyHex))
         {

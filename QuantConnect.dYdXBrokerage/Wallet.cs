@@ -38,7 +38,7 @@ public class Wallet
     public string PublicKeyType { get; }
     public string Address { get; }
     public ulong AccountNumber { get; }
-    public int SubaccountNumber { get; }
+    public uint SubaccountNumber { get; }
     public ulong Sequence { get; }
     public string ChainId { get; }
 
@@ -58,7 +58,7 @@ public class Wallet
         string publicKeyType,
         string address,
         ulong accountNumber,
-        int subaccountNumber,
+        uint subaccountNumber,
         ulong sequence,
         string chainId)
     {
@@ -87,7 +87,7 @@ public class Wallet
         string mnemonic,
         string address,
         string chainId,
-        int subaccountNumber)
+        uint subaccountNumber)
         => Builder
             .Create(apiClient)
             .FromMnemonic(mnemonic)
@@ -110,7 +110,7 @@ public class Wallet
         string privateKeyHex,
         string address,
         string chainId,
-        int subaccountNumber)
+        uint subaccountNumber)
         => Builder
             .Create(apiClient)
             .FromPrivateKey(privateKeyHex)
@@ -170,7 +170,7 @@ public class Wallet
         private string _mnemonic;
         private string _address;
         private string _chainId;
-        private int _subaccountNumber;
+        private uint _subaccountNumber;
 
         private Builder(dYdXApiClient apiClient)
         {
@@ -186,8 +186,10 @@ public class Wallet
                 throw new ArgumentException("Mnemonic cannot be null or empty", nameof(mnemonic));
 
             _mnemonic = mnemonic;
-            _privateKeyHex = null; // clear conflicting state
-            _privateKeyHex = null; // clear conflicting state
+            // clear conflicting state
+            _privateKeyHex = null;
+            _publicKeyHex = null;
+            _publicKeyType = null;
             return this;
         }
 
@@ -210,7 +212,7 @@ public class Wallet
             return this;
         }
 
-        public Builder WithSubaccount(int subaccountNumber)
+        public Builder WithSubaccount(uint subaccountNumber)
         {
             _subaccountNumber = subaccountNumber;
             return this;

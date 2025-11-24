@@ -10,12 +10,15 @@ using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx.Signing;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.Clob;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.Subaccounts;
+using QuantConnect.Orders;
 using Order = QuantConnect.Orders.Order;
 
 namespace QuantConnect.Brokerages.dYdX.Api;
 
 public class dYdXNodeClient
 {
+    private const ulong DefaultGasLimit = 1;
+
     private readonly string _restUrl;
     private readonly string _grpcUrl;
     private readonly Lazy<dYdXRestClient> _lazyRestClient;
@@ -58,7 +61,7 @@ public class dYdXNodeClient
 
         // place order
         var txBody = BuildOrderBodyTxBody(wallet);
-        var authInfo = BuildAuthInfo(wallet);
+        var authInfo = BuildAuthInfo(wallet, (order.Properties as dYdXOrderProperties)?.GazLimit ?? DefaultGasLimit);
 
         var txRaw = new TxRaw()
         {
@@ -86,6 +89,33 @@ public class dYdXNodeClient
         return response.TxResponse.Code == 0;
     }
 
+    // TODO: use Symbol Properties for price and size calculations
+    // _symbolPropertiesDatabase.GetSymbolProperties(symbol.ID.Market, symbol, symbol.SecurityType, Currencies.USD);
+    // "ETH-USD": {
+    //     "clobPairId": "1",
+    //     "ticker": "ETH-USD",
+    //     "status": "ACTIVE",
+    //     "oraclePrice": "2891.482555",
+    //     "priceChange24H": "100.695859",
+    //     "volume24H": "983.4040",
+    //     "trades24H": 48,
+    //     "nextFundingRate": "0",
+    //     "initialMarginFraction": "0.02",
+    //     "maintenanceMarginFraction": "0.012",
+    //     "openInterest": "900.052",
+    //     "atomicResolution": -9,
+    //     "quantumConversionExponent": -9,
+    //     "tickSize": "0.1",
+    //     "stepSize": "0.001",
+    //     "stepBaseQuantums": 1000000,
+    //     "subticksPerTick": 100000,
+    //     "marketType": "CROSS",
+    //     "openInterestLowerCap": "0",
+    //     "openInterestUpperCap": "0",
+    //     "baseOpenInterest": "965.58",
+    //     "defaultFundingRate1H": "0"
+    // }
+
     private TxBody BuildOrderBodyTxBody(Wallet wallet)
     {
         var txBody = new TxBody();
@@ -95,7 +125,7 @@ public class dYdXNodeClient
         {
             OrderId = new OrderId()
             {
-                SubaccountId = new SubaccountId { Owner = wallet.Address, Number = 0 },
+                SubaccountId = new SubaccountId { Owner = wallet.Address, Number = wallet.SubaccountNumber },
                 ClientId = Convert.ToUInt32(new Random().Next()),
                 OrderFlags = 64,
                 ClobPairId = 1
@@ -116,7 +146,7 @@ public class dYdXNodeClient
         return txBody;
     }
 
-    private AuthInfo BuildAuthInfo(Wallet wallet)
+    private AuthInfo BuildAuthInfo(Wallet wallet, ulong gazLimit)
     {
         // This constructs the "signer info" which tells the chain
         // "I am using this Public Key to sign, and this is my Sequence number"
@@ -145,7 +175,7 @@ public class dYdXNodeClient
             SignerInfos = { signerInfo },
             Fee = new Fee
             {
-                GasLimit = 1000000, // Set appropriate gas limit
+                GasLimit = gazLimit, // Set appropriate gas limit
                 // If fees are required, add Coin objects to Amount
                 // Amount = { new Coin { Denom = "adydx", Amount = "0" } }
             }

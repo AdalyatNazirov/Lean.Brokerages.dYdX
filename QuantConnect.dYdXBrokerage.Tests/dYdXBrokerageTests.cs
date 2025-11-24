@@ -38,7 +38,7 @@ namespace QuantConnect.Brokerages.dYdX.Tests
             var privateKey = Config.Get("dydx-private-key-hex");
             var mnemonic = Config.Get("dydx-mnemonic");
             var address = Config.Get("dydx-address");
-            var subaccountNumber = Config.GetInt("dydx-subaccount-number");
+            var subaccountNumber = checked((uint)Config.GetInt("dydx-subaccount-number"));
             var nodeUrlRest = Config.Get("dydx-node-api-rest");
             var nodeUrlGrpc = Config.Get("dydx-node-api-grpc");
             var indexerUrlRest = Config.Get("dydx-indexer-api-rest");
