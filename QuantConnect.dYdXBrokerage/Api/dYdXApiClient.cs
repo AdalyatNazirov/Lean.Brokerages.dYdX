@@ -1,3 +1,4 @@
+using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.Orders;
 

@@ -18,8 +18,9 @@ using QuantConnect.Data;
 using QuantConnect.Packets;
 using QuantConnect.Interfaces;
 using System.Collections.Generic;
-using Google.Protobuf.WellKnownTypes;
 using QuantConnect.Brokerages.dYdX.Api;
+using QuantConnect.Brokerages.dYdX.Domain;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -33,7 +34,9 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     private IDataAggregator _aggregator;
     private LiveNodePacket _job;
     private readonly EventBasedDataQueueHandlerSubscriptionManager _subscriptionManager;
+
     private SymbolPropertiesDatabaseSymbolMapper _symbolMapper;
+    private static readonly SymbolPropertiesDatabase _symbolPropertiesDatabase = SymbolPropertiesDatabase.FromDataFolder();
 
     private Lazy<dYdXApiClient> _apiClientLazy;
 

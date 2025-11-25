@@ -1,10 +1,10 @@
 using System;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using Cosmos.Crypto.Secp256K1;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
+using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx.Signing;

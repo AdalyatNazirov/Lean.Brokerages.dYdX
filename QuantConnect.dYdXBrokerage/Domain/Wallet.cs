@@ -22,7 +22,7 @@ using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using QuantConnect.Brokerages.dYdX.Api;
 
-namespace QuantConnect.Brokerages.dYdX;
+namespace QuantConnect.Brokerages.dYdX.Domain;
 
 /// <summary>
 /// Represents a cryptocurrency wallet for dYdX operations

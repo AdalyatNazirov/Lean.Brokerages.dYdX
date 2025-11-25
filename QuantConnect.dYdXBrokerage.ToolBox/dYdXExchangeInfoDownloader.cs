@@ -38,6 +38,7 @@ namespace QuantConnect.Brokerages.dYdX.ToolBox
         /// <returns>Enumerable of exchange info for this market</returns>
         public IEnumerable<string> Get()
         {
+            const int quoteQuantumsAtomicResolution = -6;
             var baseUrl = Config.Get("dydx-indexer-url", "https://indexer.dydx.trade");
 
             var futureData = Extensions.DownloadData($"{baseUrl.TrimEnd('/')}/v4/perpetualMarkets");
@@ -50,6 +51,7 @@ namespace QuantConnect.Brokerages.dYdX.ToolBox
                 {
                     continue;
                 }
+
                 // TODO: handle ticker with comma, i.e. https://dydx.trade/trade/FARTCOIN,RAYDIUM,9BB6NFECJBCTNNLFKO2FQVQBQ8HHM13KCYYCDQBGPUMP-USD
                 // For now, we skip them as SymbolPropertiesDatabase doesn't support csv values with ','
                 if (symbol.Ticker.Contains(","))
@@ -63,8 +65,16 @@ namespace QuantConnect.Brokerages.dYdX.ToolBox
                 var quoteAsset = assets[1];
                 var tickerCsvValue = symbol.Ticker.Contains(",") ? $"\"{symbol.Ticker}\"" : symbol.Ticker;
 
+                var strikeMultiplier = ((decimal)Math.Pow(10, -symbol.AtomicResolution)).ToStringInvariant();
+                var minOrderSize = (symbol.StepBaseQuantums * (decimal)Math.Pow(10, symbol.AtomicResolution))
+                    .ToStringInvariant();
+                var exponent = symbol.AtomicResolution
+                               - symbol.QuantumConversionExponent
+                               - quoteQuantumsAtomicResolution;
+                var priceMagnifier = ((decimal)Math.Pow(10, exponent)).ToStringInvariant();
+
                 yield return
-                    $"{Market.ToLowerInvariant()},{baseAsset}{quoteAsset},cryptofuture,{tickerCsvValue},{quoteAsset},{contractSize},{symbol.TickSize},{symbol.StepSize},{tickerCsvValue}";
+                    $"{Market.ToLowerInvariant()},{baseAsset}{quoteAsset},cryptofuture,{tickerCsvValue},{quoteAsset},{contractSize},{symbol.TickSize},{symbol.StepSize},{symbol.ClobPairId},{minOrderSize},{priceMagnifier},{strikeMultiplier}";
             }
         }
     }

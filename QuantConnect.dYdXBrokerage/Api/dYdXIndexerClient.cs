@@ -1,4 +1,5 @@
 using System;
+using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Models;
 
 namespace QuantConnect.Brokerages.dYdX.Api;
