@@ -16,8 +16,7 @@
 using System;
 using QuantConnect.ToolBox;
 using System.Collections.Generic;
-using Newtonsoft.Json;
-using QuantConnect.Brokerages.dYdX.ToolBox.Models;
+using QuantConnect.Brokerages.dYdX.Api;
 using QuantConnect.Configuration;
 
 namespace QuantConnect.Brokerages.dYdX.ToolBox
@@ -41,10 +40,8 @@ namespace QuantConnect.Brokerages.dYdX.ToolBox
             const int quoteQuantumsAtomicResolution = -6;
             var baseUrl = Config.Get("dydx-indexer-url", "https://indexer.dydx.trade");
 
-            var futureData = Extensions.DownloadData($"{baseUrl.TrimEnd('/')}/v4/perpetualMarkets");
-
-            var symbols = JsonConvert.DeserializeObject<ExchangeInfo>(futureData).Symbols
-                .Values;
+            var indexerApi = new dYdXIndexerClient(baseUrl);
+            var symbols = indexerApi.GetExchangeInfo().Symbols.Values;
             foreach (var symbol in symbols)
             {
                 if (!symbol.Status.Equals("ACTIVE", StringComparison.InvariantCultureIgnoreCase))

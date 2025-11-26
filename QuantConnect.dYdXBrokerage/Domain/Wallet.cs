@@ -251,7 +251,7 @@ public class Wallet
             if (string.IsNullOrWhiteSpace(privateKeyHex))
                 throw new InvalidOperationException("Private key or mnemonic must be provided");
 
-            var account = _apiClient.GetAccount(_address);
+            var account = _apiClient.Node.GetAccount(_address);
 
             return new Wallet(
                 privateKeyHex,

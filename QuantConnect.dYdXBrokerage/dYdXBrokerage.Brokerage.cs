@@ -1,9 +1,11 @@
 using System;
-using QuantConnect.Orders;
 using QuantConnect.Securities;
 using System.Collections.Generic;
 using System.Linq;
 using QuantConnect.Logging;
+using QuantConnect.Orders;
+using QuantConnect.Orders.Fees;
+using dydxOrder = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -31,7 +33,7 @@ public partial class dYdXBrokerage
         // This can be extended to support multiple subaccounts if needed.
         try
         {
-            var positionsResponse = ApiClient.GetOpenPerpetualPositions(Wallet);
+            var positionsResponse = ApiClient.Indexer.GetPerpetualPositions(Wallet);
             var holdings = new List<Holding>();
 
             if (positionsResponse?.Positions == null)
@@ -75,7 +77,7 @@ public partial class dYdXBrokerage
     /// <returns>The current cash balance for each currency available for trading</returns>
     public override List<CashAmount> GetCashBalance()
     {
-        var balances = ApiClient.GetCashBalance(Wallet);
+        var balances = ApiClient.Node.GetCashBalance(Wallet);
         return balances
             .Balances
             .Select(b => new CashAmount(b.Amount, b.Denom.LazyToUpper()))
@@ -89,7 +91,27 @@ public partial class dYdXBrokerage
     /// <returns>True if the request for a new order has been placed, false otherwise</returns>
     public override bool PlaceOrder(Order order)
     {
-        return ApiClient.PlaceOrder(Wallet, order);
+        // var result = default();
+        try
+        {
+            var dydxOrder = _market.CreateOrder(order);
+            var gasLimit = (order.Properties as dYdXOrderProperties)?.GasLimit ?? Domain.Market.DefaultGasLimit;
+            return ApiClient.Node.PlaceOrder(Wallet, dydxOrder, gasLimit);
+        }
+        catch (Exception ex)
+        {
+            OnOrderEvent(new OrderEvent(order, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event: " + ex.Message)
+            {
+                Status = OrderStatus.Invalid
+            });
+            return false;
+        }
+
+        // order.BrokerId.Add(result.OrderId);
+        // OnOrderEvent(new OrderEvent(order, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
+        // {
+        //     Status = OrderStatus.Submitted
+        // });
     }
 
     /// <summary>
@@ -99,7 +121,8 @@ public partial class dYdXBrokerage
     /// <returns>True if the request was made for the order to be updated, false otherwise</returns>
     public override bool UpdateOrder(Order order)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException(
+            "dYdXBrokerage.UpdateOrder: Order update not supported. Please cancel and re-create.");
     }
 
     /// <summary>

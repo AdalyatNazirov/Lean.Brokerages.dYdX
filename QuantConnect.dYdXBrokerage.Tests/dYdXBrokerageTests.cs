@@ -28,9 +28,9 @@ namespace QuantConnect.Brokerages.dYdX.Tests
     [TestFixture]
     public partial class dYdXBrokerageTests : BrokerageTests
     {
-        private static readonly Symbol _ethusdt = Symbol.Create("ETHUSDT", SecurityType.CryptoFuture, Market.dYdX);
+        private static readonly Symbol _ethusd = Symbol.Create("ETHUSD", SecurityType.CryptoFuture, Market.dYdX);
 
-        protected override Symbol Symbol => _ethusdt;
+        protected override Symbol Symbol => _ethusd;
         protected override SecurityType SecurityType => SecurityType.CryptoFuture;
 
         protected override IBrokerage CreateBrokerage(IOrderProvider orderProvider, ISecurityProvider securityProvider)

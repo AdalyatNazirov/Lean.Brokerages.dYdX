@@ -35,8 +35,11 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     private LiveNodePacket _job;
     private readonly EventBasedDataQueueHandlerSubscriptionManager _subscriptionManager;
 
+    private Domain.Market _market;
     private SymbolPropertiesDatabaseSymbolMapper _symbolMapper;
-    private static readonly SymbolPropertiesDatabase _symbolPropertiesDatabase = SymbolPropertiesDatabase.FromDataFolder();
+
+    private static readonly SymbolPropertiesDatabase _symbolPropertiesDatabase =
+        SymbolPropertiesDatabase.FromDataFolder();
 
     private Lazy<dYdXApiClient> _apiClientLazy;
 
@@ -154,6 +157,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
             }
 
             Wallet = wallet;
+            _market = new Domain.Market(wallet, _symbolMapper, _symbolPropertiesDatabase, ApiClient);
         }
     }
 

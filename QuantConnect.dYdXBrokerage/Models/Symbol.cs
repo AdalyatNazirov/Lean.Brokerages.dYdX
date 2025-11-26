@@ -1,10 +1,12 @@
 using Newtonsoft.Json;
 
-namespace QuantConnect.Brokerages.dYdX.ToolBox.Models;
+namespace QuantConnect.Brokerages.dYdX.Models;
 
 public class Symbol
 {
     [JsonProperty("clobPairId")] public string ClobPairId { get; set; }
+
+    [JsonProperty("oraclePrice")] public decimal OraclePrice { get; set; }
 
     [JsonProperty("ticker")] public string Ticker { get; set; }
 

@@ -25,11 +25,12 @@
   <ItemGroup>
     <Compile Include="..\..\Lean\Common\Properties\SharedAssemblyInfo.cs" Link="Properties\SharedAssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup> 
+  <ItemGroup>
     <Protobuf Include="Protos\amino\amino.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\base\abci\v1beta1\abci.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\base\query\v1beta1\pagination.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\base\v1beta1\coin.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\cosmos\base\tendermint\v1beta1\query.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\crypto\multisig\v1beta1\multisig.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\crypto\secp256k1\keys.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\cosmos\msg\v1\msg.proto" GrpcServices="Client" ProtoRoot="Protos\" />
@@ -49,6 +50,7 @@
     <Protobuf Include="Protos\tendermint\types\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\tendermint\types\validator.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\tendermint\version\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
+    <Protobuf Include="Protos\tendermint\p2p\types.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\dydxprotocol\clob\block_rate_limit_config.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\dydxprotocol\clob\clob_pair.proto" GrpcServices="Client" ProtoRoot="Protos\" />
     <Protobuf Include="Protos\dydxprotocol\clob\equity_tier_limit_config.proto" GrpcServices="Client" ProtoRoot="Protos\" />
