@@ -2,10 +2,11 @@ using System;
 using QuantConnect.Securities;
 using System.Collections.Generic;
 using System.Linq;
+using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
 using QuantConnect.Orders.Fees;
-using dydxOrder = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order;
+using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -91,12 +92,32 @@ public partial class dYdXBrokerage
     /// <returns>True if the request for a new order has been placed, false otherwise</returns>
     public override bool PlaceOrder(Order order)
     {
-        // var result = default();
+        dYdXPlaceOrderResponse result;
         try
         {
             var dydxOrder = _market.CreateOrder(order);
             var gasLimit = (order.Properties as dYdXOrderProperties)?.GasLimit ?? Domain.Market.DefaultGasLimit;
-            return ApiClient.Node.PlaceOrder(Wallet, dydxOrder, gasLimit);
+            result = ApiClient.Node.PlaceOrder(Wallet, dydxOrder, gasLimit);
+            if (result.Code == 0)
+            {
+                order.BrokerId.Add(result.OrderId.ToString());
+                OnOrderEvent(new OrderEvent(order, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
+                {
+                    Status = OrderStatus.Submitted
+                });
+            }
+            else
+            {
+                var message =
+                    $"Order failed, Order Id: {order.Id} timestamp: {order.Time} quantity: {order.Quantity} content: {result.Message}";
+                OnOrderEvent(new OrderEvent(
+                        order,
+                        DateTime.UtcNow,
+                        OrderFee.Zero,
+                        result.Message)
+                    { Status = OrderStatus.Invalid });
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, -1, message));
+            }
         }
         catch (Exception ex)
         {
@@ -104,14 +125,9 @@ public partial class dYdXBrokerage
             {
                 Status = OrderStatus.Invalid
             });
-            return false;
         }
 
-        // order.BrokerId.Add(result.OrderId);
-        // OnOrderEvent(new OrderEvent(order, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
-        // {
-        //     Status = OrderStatus.Submitted
-        // });
+        return true;
     }
 
     /// <summary>
@@ -132,7 +148,55 @@ public partial class dYdXBrokerage
     /// <returns>True if the request was made for the order to be canceled, false otherwise</returns>
     public override bool CancelOrder(Order order)
     {
-        throw new NotImplementedException();
+        if (order.Status == OrderStatus.Filled || order.Type == OrderType.Market)
+        {
+            OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, -1, "Order already filled"));
+            return false;
+        }
+
+        if (order.Status is OrderStatus.Canceled)
+        {
+            OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, -1, "Order already canceled"));
+            return false;
+        }
+
+        dYdXCancelOrderResponse result;
+        try
+        {
+            var dydxOrder = _market.CreateOrder(order);
+            var gasLimit = (order.Properties as dYdXOrderProperties)?.GasLimit ?? Domain.Market.DefaultGasLimit;
+            result = ApiClient.Node.CancelOrder(Wallet, dydxOrder, gasLimit);
+        }
+        catch (Exception ex)
+        {
+            OnOrderEvent(new OrderEvent(order, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event: " + ex.Message)
+            {
+                Status = OrderStatus.Invalid
+            });
+            return false;
+        }
+
+        if (result.Code == 0)
+        {
+            OnOrderEvent(new OrderEvent(order, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
+            {
+                Status = OrderStatus.CancelPending
+            });
+        }
+        else
+        {
+            var message =
+                $"Cancel order failed, Order Id: {order.Id} timestamp: {order.Time} quantity: {order.Quantity} content: {result.Message}";
+            OnOrderEvent(new OrderEvent(
+                    order,
+                    DateTime.UtcNow,
+                    OrderFee.Zero,
+                    result.Message)
+                { Status = OrderStatus.Invalid });
+            OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, -1, message));
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -154,7 +218,9 @@ public partial class dYdXBrokerage
     /// </summary>
     public override void Disconnect()
     {
-        // TODO: Implement
-        // throw new NotImplementedException();
+        if (_apiClientLazy?.IsValueCreated == true)
+        {
+            _apiClientLazy.Value.DisposeSafely();
+        }
     }
 }

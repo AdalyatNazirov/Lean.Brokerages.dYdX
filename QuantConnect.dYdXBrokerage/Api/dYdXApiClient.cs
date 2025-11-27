@@ -1,7 +1,15 @@
+using System;
+using QuantConnect.Util;
+
 namespace QuantConnect.Brokerages.dYdX.Api;
 
-public class dYdXApiClient(string nodeEndpointRest, string nodeEndpointGrpc, string indexerEndpointRest)
+public class dYdXApiClient(string nodeEndpointRest, string nodeEndpointGrpc, string indexerEndpointRest) : IDisposable
 {
-    public dYdXIndexerClient Indexer { get; init; } = new(indexerEndpointRest);
-    public dYdXNodeClient Node { get; init; } = new(nodeEndpointRest, nodeEndpointGrpc);
+    public dYdXIndexerClient Indexer { get; } = new(indexerEndpointRest);
+    public dYdXNodeClient Node { get; } = new(nodeEndpointRest, nodeEndpointGrpc);
+
+    public void Dispose()
+    {
+        Node?.DisposeSafely();
+    }
 }

@@ -5,32 +5,38 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
 using QuantConnect.Brokerages.dYdX.Domain;
+using QuantConnect.Brokerages.dYdX.Domain.Enums;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.dYdXBrokerage.Cosmos.Base.Tendermint.V1Beta1;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx.Signing;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.Clob;
+using QuantConnect.Util;
 using Order = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order;
 using TxService = QuantConnect.dYdXBrokerage.Cosmos.Tx.Service;
 using TendermintService = QuantConnect.dYdXBrokerage.Cosmos.Base.Tendermint.V1Beta1.Service;
 
 namespace QuantConnect.Brokerages.dYdX.Api;
 
-public class dYdXNodeClient
+public class dYdXNodeClient : IDisposable
 {
     private readonly string _restUrl;
-    private readonly string _grpcUrl;
     private readonly Lazy<dYdXRestClient> _lazyRestClient;
-    private readonly GrpcChannelOptions _grpcChannelOptions;
+    private readonly Lazy<GrpcChannel> _lazyGrpcChannel;
+    private readonly Lazy<TxService.ServiceClient> _lazyTxService;
+    private readonly Lazy<TendermintService.ServiceClient> _lazyTendermintService;
 
     private dYdXRestClient RestClient => _lazyRestClient.Value;
+    private GrpcChannel GrpcChannel => _lazyGrpcChannel.Value;
+    private TxService.ServiceClient TxService => _lazyTxService.Value;
+    private TendermintService.ServiceClient TendermintService => _lazyTendermintService.Value;
 
     public dYdXNodeClient(string restUrl, string grpcUrl)
     {
         _restUrl = restUrl;
-        _grpcUrl = grpcUrl;
         _lazyRestClient = new(() => new dYdXRestClient(_restUrl.TrimEnd('/')));
-        _grpcChannelOptions = new GrpcChannelOptions
+
+        var grpcChannelOptions = new GrpcChannelOptions
         {
             HttpHandler = new SocketsHttpHandler
             {
@@ -39,15 +45,16 @@ public class dYdXNodeClient
                 EnableMultipleHttp2Connections = true
             }
         };
+
+        var uri = new Uri(grpcUrl.TrimEnd('/'));
+        _lazyGrpcChannel = new(() => GrpcChannel.ForAddress(uri, grpcChannelOptions));
+        _lazyTxService = new(() => new TxService.ServiceClient(GrpcChannel));
+        _lazyTendermintService = new(() => new TendermintService.ServiceClient(GrpcChannel));
     }
 
     public uint GetLatestBlockHeight()
     {
-        var uri = new Uri(_grpcUrl.TrimEnd('/'));
-        var channel = GrpcChannel.ForAddress(uri, _grpcChannelOptions);
-        var service = new TendermintService.ServiceClient(channel);
-
-        return checked((uint)service.GetLatestBlock(new GetLatestBlockRequest()).Block.Header.Height);
+        return checked((uint)TendermintService.GetLatestBlock(new GetLatestBlockRequest()).Block.Header.Height);
     }
 
     public dYdXAccount GetAccount(string address)
@@ -61,14 +68,36 @@ public class dYdXNodeClient
         return RestClient.Get<dYdXAccountBalances>($"/cosmos/bank/v1beta1/balances/{wallet.Address}");
     }
 
-    public bool PlaceOrder(Wallet wallet, Order order, ulong gasLimit)
+    public dYdXPlaceOrderResponse PlaceOrder(Wallet wallet, Order order, ulong gasLimit)
     {
-        var uri = new Uri(_grpcUrl.TrimEnd('/'));
-        var channel = GrpcChannel.ForAddress(uri, _grpcChannelOptions);
-        var service = new TxService.ServiceClient(channel);
+        var txBody = BuildPlaceOrderBodyTxBody(order);
+        var response = BroadcastTransaction(wallet, txBody, gasLimit);
 
-        // place order
-        var txBody = BuildOrderBodyTxBody(wallet, order);
+        return new dYdXPlaceOrderResponse
+        {
+            Code = response.TxResponse.Code,
+            OrderId = order.OrderId.ClientId,
+            TxHash = response.TxResponse.Txhash,
+            Message = response.TxResponse.RawLog
+        };
+    }
+
+    public dYdXCancelOrderResponse CancelOrder(Wallet wallet, Order order, ulong gasLimit)
+    {
+        var txBody = BuildCancelOrderTxBody(order);
+        var response = BroadcastTransaction(wallet, txBody, gasLimit);
+
+        return new dYdXCancelOrderResponse
+        {
+            Code = response.TxResponse.Code,
+            OrderId = order.OrderId.ClientId,
+            TxHash = response.TxResponse.Txhash,
+            Message = response.TxResponse.RawLog
+        };
+    }
+
+    private BroadcastTxResponse BroadcastTransaction(Wallet wallet, TxBody txBody, ulong gasLimit)
+    {
         var authInfo = BuildAuthInfo(wallet, gasLimit);
 
         var txRaw = new TxRaw
@@ -86,22 +115,47 @@ public class dYdXNodeClient
         };
 
         byte[] signatureBytes = wallet.Sign(signdoc.ToByteArray());
-
         txRaw.Signatures.Add(ByteString.CopyFrom(signatureBytes));
 
-        var response = service.BroadcastTx(new BroadcastTxRequest
+        return TxService.BroadcastTx(new BroadcastTxRequest
         {
-            TxBytes = txRaw.ToByteString(), Mode = BroadcastMode.Sync
+            TxBytes = txRaw.ToByteString(),
+            Mode = BroadcastMode.Sync
         });
-
-        return response.TxResponse.Code == 0;
     }
 
-    private TxBody BuildOrderBodyTxBody(Wallet wallet, Order orderProto)
+    private TxBody BuildPlaceOrderBodyTxBody(Order orderProto)
     {
         var txBody = new TxBody();
         var msgPlaceOrder = new MsgPlaceOrder { Order = orderProto };
         var msg = new Any { TypeUrl = "/dydxprotocol.clob.MsgPlaceOrder", Value = msgPlaceOrder.ToByteString() };
+        txBody.Messages.Add(msg);
+        return txBody;
+    }
+
+    private TxBody BuildCancelOrderTxBody(Order order)
+    {
+        var orderId = order.OrderId;
+        var txBody = new TxBody();
+        var msgCancelOrder = new MsgCancelOrder
+        {
+            OrderId = orderId
+        };
+
+        if (orderId.OrderFlags == (uint)OrderFlags.ShortTerm)
+        {
+            // TODO: we want to cancel ASAP, so add a standard buffer.
+            // use the block height of the order to cancel it ASAP
+            msgCancelOrder.GoodTilBlock = order.GoodTilBlock;
+        }
+        else
+        {
+            // TODO: we want to cancel ASAP, so add a small buffer
+            // use the block time of the order to cancel it ASAP
+            msgCancelOrder.GoodTilBlockTime = order.GoodTilBlockTime;
+        }
+
+        var msg = new Any { TypeUrl = "/dydxprotocol.clob.MsgCancelOrder", Value = msgCancelOrder.ToByteString() };
         txBody.Messages.Add(msg);
         return txBody;
     }
@@ -142,5 +196,13 @@ public class dYdXNodeClient
         };
 
         return authInfo;
+    }
+
+    public void Dispose()
+    {
+        if (_lazyGrpcChannel.IsValueCreated)
+        {
+            _lazyGrpcChannel.Value.DisposeSafely();
+        }
     }
 }

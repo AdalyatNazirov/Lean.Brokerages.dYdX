@@ -20,6 +20,7 @@ public class Market
     private readonly SymbolPropertiesDatabase _symbolPropertiesDatabase;
     private readonly dYdXApiClient _apiClient;
     private readonly Lazy<Dictionary<string, Models.Symbol>> _markets;
+    private static Random _random = new();
 
     public const ulong DefaultGasLimit = 1_000_000;
     private const uint ShortBlockWindow = 20u;
@@ -55,7 +56,9 @@ public class Market
             OrderId = new OrderId
             {
                 SubaccountId = new SubaccountId { Owner = _wallet.Address, Number = _wallet.SubaccountNumber },
-                ClientId = checked((uint)order.Id),
+                // TODO: dYdX does not return order Id; LEAN orderId always starts from 1 on each run, so we use ClientId as a workaround
+                // ClientId = checked((uint)order.Id),
+                ClientId = RandomUInt32(),
                 OrderFlags = (uint)orderFlag,
                 ClobPairId = marketId
             },
@@ -115,7 +118,8 @@ public class Market
         return marketInfo;
     }
 
-    private void ConfigureShortTermOrder(dYdXOrder dydxOrder, dYdXOrderProperties? orderProperties, Models.Symbol marketInfo,
+    private void ConfigureShortTermOrder(dYdXOrder dydxOrder, dYdXOrderProperties? orderProperties,
+        Models.Symbol marketInfo,
         SymbolProperties symbolProperties, QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.Side side)
     {
         // Find the market configuration to get the current Oracle Price
@@ -131,7 +135,8 @@ public class Market
                                  (orderProperties?.GoodTilBlockOffset ?? ShortBlockWindow);
     }
 
-    private void ConfigureLongTermOrder(dYdXOrder dydxOrder, Order order, Models.Symbol marketInfo, SymbolProperties symbolProperties)
+    private void ConfigureLongTermOrder(dYdXOrder dydxOrder, Order order, Models.Symbol marketInfo,
+        SymbolProperties symbolProperties)
     {
         if (order.TimeInForce is not GoodTilDateTimeInForce dateTimeInForce)
         {
@@ -142,7 +147,8 @@ public class Market
         dydxOrder.Subticks = CalculateSubticks(order.Price, symbolProperties, marketInfo);
     }
 
-    private static ulong CalculateQuantums(decimal quantity, SymbolProperties symbolProperties, Models.Symbol marketInfo)
+    private static ulong CalculateQuantums(decimal quantity, SymbolProperties symbolProperties,
+        Models.Symbol marketInfo)
     {
         var quantums = Convert.ToUInt64(quantity * symbolProperties.StrikeMultiplier);
         quantums = (quantums / marketInfo.StepBaseQuantums) * marketInfo.StepBaseQuantums;
@@ -213,5 +219,10 @@ public class Market
         return direction == OrderDirection.Buy
             ? QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.Side.Buy
             : QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.Side.Sell;
+    }
+
+    private static uint RandomUInt32()
+    {
+        return (uint)(_random.Next(1 << 30)) << 2 | (uint)(_random.Next(1 << 2));
     }
 }
