@@ -38,22 +38,31 @@ namespace QuantConnect.Brokerages.dYdX.Tests
                 return new[]
                 {
                     // valid parameters, example:
-                    new TestCaseData(Symbols.BTCUSD, Resolution.Tick, TimeSpan.FromMinutes(1), TickType.Quote, typeof(Tick), false),
-                    new TestCaseData(Symbols.BTCUSD, Resolution.Minute, TimeSpan.FromMinutes(10), TickType.Quote, typeof(QuoteBar), false),
-                    new TestCaseData(Symbols.BTCUSD, Resolution.Daily, TimeSpan.FromDays(10), TickType.Quote, typeof(QuoteBar), false),
+                    new TestCaseData(Symbols.BTCUSD, Resolution.Tick, TimeSpan.FromMinutes(1), TickType.Quote,
+                        typeof(Tick), false),
+                    new TestCaseData(Symbols.BTCUSD, Resolution.Minute, TimeSpan.FromMinutes(10), TickType.Quote,
+                        typeof(QuoteBar), false),
+                    new TestCaseData(Symbols.BTCUSD, Resolution.Daily, TimeSpan.FromDays(10), TickType.Quote,
+                        typeof(QuoteBar), false),
 
-                    new TestCaseData(Symbols.BTCUSD, Resolution.Tick, TimeSpan.FromMinutes(1), TickType.Trade, typeof(Tick), false),
-                    new TestCaseData(Symbols.BTCUSD, Resolution.Minute, TimeSpan.FromMinutes(10), TickType.Trade, typeof(TradeBar), false),
-                    new TestCaseData(Symbols.BTCUSD, Resolution.Daily, TimeSpan.FromDays(10), TickType.Trade, typeof(TradeBar), false),
+                    new TestCaseData(Symbols.BTCUSD, Resolution.Tick, TimeSpan.FromMinutes(1), TickType.Trade,
+                        typeof(Tick), false),
+                    new TestCaseData(Symbols.BTCUSD, Resolution.Minute, TimeSpan.FromMinutes(10), TickType.Trade,
+                        typeof(TradeBar), false),
+                    new TestCaseData(Symbols.BTCUSD, Resolution.Daily, TimeSpan.FromDays(10), TickType.Trade,
+                        typeof(TradeBar), false),
 
                     // invalid parameter, validate SecurityType more accurate
-                    new TestCaseData(Symbols.SPY, Resolution.Hour, TimeSpan.FromHours(14), TickType.Quote, typeof(QuoteBar), true),
+                    new TestCaseData(Symbols.SPY, Resolution.Hour, TimeSpan.FromHours(14), TickType.Quote,
+                        typeof(QuoteBar), true),
 
                     /// New Listed Symbol on Brokerage <see cref="Slice.SymbolChangedEvents"/>
-                    new TestCaseData(Symbol.Create("SUSHIGBP", SecurityType.Crypto, Market.Coinbase), Resolution.Minute, TimeSpan.FromHours(2), TickType.Trade, typeof(TradeBar), false),
+                    new TestCaseData(Symbol.Create("SUSHIGBP", SecurityType.Crypto, Market.Coinbase), Resolution.Minute,
+                        TimeSpan.FromHours(2), TickType.Trade, typeof(TradeBar), false),
 
                     /// Symbol was delisted form Brokerage (can return history data or not) <see cref="Slice.Delistings"/>
-                    new TestCaseData(Symbol.Create("SNTUSD", SecurityType.Crypto, Market.Coinbase), Resolution.Daily, TimeSpan.FromDays(14), TickType.Trade, typeof(TradeBar), true),
+                    new TestCaseData(Symbol.Create("SNTUSD", SecurityType.Crypto, Market.Coinbase), Resolution.Daily,
+                        TimeSpan.FromDays(14), TickType.Trade, typeof(TradeBar), true),
                 };
             }
         }
@@ -134,16 +143,24 @@ namespace QuantConnect.Brokerages.dYdX.Tests
 
             Brokerage CreateBrokerage()
             {
+                var privateKey = Config.Get("dydx-private-key-hex");
+                var mnemonic = Config.Get("dydx-mnemonic");
                 var address = Config.Get("dydx-address");
-                var subaccountNumber = Config.GetInt("dydx-subaccount-number");
-                var nodeUrl = Config.Get("dydx-node-api-url");
-                var indexerUrl = Config.Get("dydx-indexer-api-url");
+                var subaccountNumber = checked((uint)Config.GetInt("dydx-subaccount-number"));
+                var nodeUrlRest = Config.Get("dydx-node-api-rest");
+                var nodeUrlGrpc = Config.Get("dydx-node-api-grpc");
+                var indexerUrlRest = Config.Get("dydx-indexer-api-rest");
+                var chainId = Config.Get("dydx-chain-id");
 
                 return new dYdXBrokerage(
+                    privateKey,
+                    mnemonic,
                     address,
+                    chainId,
                     subaccountNumber,
-                    nodeUrl,
-                    indexerUrl,
+                    nodeUrlRest,
+                    nodeUrlGrpc,
+                    indexerUrlRest,
                     null,
                     new AggregationManager(),
                     null

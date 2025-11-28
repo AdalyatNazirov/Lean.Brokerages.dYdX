@@ -1,28 +1,15 @@
-using QuantConnect.Brokerages.dYdX.Models;
+using System;
+using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages.dYdX.Api;
 
-public class dYdXApiClient
+public class dYdXApiClient(string nodeEndpointRest, string nodeEndpointGrpc, string indexerEndpointRest) : IDisposable
 {
-    private readonly string _address;
+    public dYdXIndexerClient Indexer { get; } = new(indexerEndpointRest);
+    public dYdXNodeClient Node { get; } = new(nodeEndpointRest, nodeEndpointGrpc);
 
-    private readonly dYdXIndexerClient _indexer;
-    private readonly dYdXNodeClient _node;
-
-    public dYdXApiClient(string address, string nodeApiUrl, string indexerApiUrl)
+    public void Dispose()
     {
-        _address = address;
-        _indexer = new dYdXIndexerClient(indexerApiUrl);
-        _node = new dYdXNodeClient(nodeApiUrl);
-    }
-
-    public dYdXAccountBalances GetCashBalance()
-    {
-        return _node.GetCashBalance(_address);
-    }
-
-    public dYdXPerpetualPositionsResponse GetOpenPerpetualPositions(int subaccountNumber)
-    {
-        return _indexer.GetPerpetualPositions(_address, subaccountNumber, "OPEN");
+        Node?.DisposeSafely();
     }
 }

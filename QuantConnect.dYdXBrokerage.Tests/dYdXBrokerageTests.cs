@@ -28,22 +28,32 @@ namespace QuantConnect.Brokerages.dYdX.Tests
     [TestFixture]
     public partial class dYdXBrokerageTests : BrokerageTests
     {
-        protected override Symbol Symbol { get; }
-        protected override SecurityType SecurityType { get; }
+        private static readonly Symbol _ethusd = Symbol.Create("ETHUSD", SecurityType.CryptoFuture, Market.dYdX);
+
+        protected override Symbol Symbol => _ethusd;
+        protected override SecurityType SecurityType => SecurityType.CryptoFuture;
 
         protected override IBrokerage CreateBrokerage(IOrderProvider orderProvider, ISecurityProvider securityProvider)
         {
+            var privateKey = Config.Get("dydx-private-key-hex");
+            var mnemonic = Config.Get("dydx-mnemonic");
             var address = Config.Get("dydx-address");
-            var subaccountNumber = Config.GetInt("dydx-subaccount-number");
-            var nodeUrl = Config.Get("dydx-node-api-url");
-            var indexerUrl = Config.Get("dydx-indexer-api-url");
+            var subaccountNumber = checked((uint)Config.GetInt("dydx-subaccount-number"));
+            var nodeUrlRest = Config.Get("dydx-node-api-rest");
+            var nodeUrlGrpc = Config.Get("dydx-node-api-grpc");
+            var indexerUrlRest = Config.Get("dydx-indexer-api-rest");
+            var chainId = Config.Get("dydx-chain-id");
 
             IAlgorithm algorithm = Mock.Of<IAlgorithm>();
             return new dYdXBrokerage(
+                privateKey,
+                mnemonic,
                 address,
+                chainId,
                 subaccountNumber,
-                nodeUrl,
-                indexerUrl,
+                nodeUrlRest,
+                nodeUrlGrpc,
+                indexerUrlRest,
                 algorithm,
                 null,
                 null);
@@ -70,7 +80,8 @@ namespace QuantConnect.Brokerages.dYdX.Tests
             yield return new TestCaseData(new StopLimitOrderTestParameters(Symbols.BTCUSD, 10000m, 0.01m));
             yield return new TestCaseData(new LimitIfTouchedOrderTestParameters(Symbols.BTCUSD, 10000m, 0.01m));
 
-            var optionSymbol = Symbol.CreateOption(Symbols.SPY, Market.USA, OptionStyle.American, OptionRight.Call, 200m, new DateTime(2029, 12, 19));
+            var optionSymbol = Symbol.CreateOption(Symbols.SPY, Market.USA, OptionStyle.American, OptionRight.Call,
+                200m, new DateTime(2029, 12, 19));
             yield return new TestCaseData(new MarketOrderTestParameters(optionSymbol));
         }
 

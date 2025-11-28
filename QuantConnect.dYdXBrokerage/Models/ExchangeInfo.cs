@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace QuantConnect.Brokerages.dYdX.ToolBox.Models;
+namespace QuantConnect.Brokerages.dYdX.Models;
 
 /// <summary>
 /// Represents dYdX market data response

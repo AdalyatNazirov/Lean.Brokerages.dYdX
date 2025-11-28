@@ -39,8 +39,14 @@ namespace QuantConnect.Brokerages.dYdX
         /// </remarks>
         public override Dictionary<string, string> BrokerageData => new()
         {
+            { "dydx-private-key-hex", Config.Get("dydx-private-key-hex") },
+            { "dydx-mnemonic", Config.Get("dydx-mnemonic") },
             { "dydx-address", Config.Get("dydx-address") },
-            { "dydx-node-api-url", Config.Get("dydx-node-api-url") }
+            { "dydx-subaccount-number", Config.Get("dydx-subaccount-number") },
+            { "dydx-node-api-rest", Config.Get("dydx-node-api-rest") },
+            { "dydx-node-api-grpc", Config.Get("dydx-node-api-grpc") },
+            { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest") },
+            { "dydx-chain-id", Config.Get("dydx-chain-id") }
         };
 
         /// <summary>
@@ -68,10 +74,21 @@ namespace QuantConnect.Brokerages.dYdX
         public override IBrokerage CreateBrokerage(LiveNodePacket job, IAlgorithm algorithm)
         {
             var errors = new List<string>();
+            var keyErrors = new List<string>();
+            var privateKey = Read<string>(job.BrokerageData, "dydx-private-key-hex", keyErrors);
+            var mnemonic = Read<string>(job.BrokerageData, "dydx-mnemonic", keyErrors);
+
+            if (string.IsNullOrEmpty(privateKey) && string.IsNullOrEmpty(mnemonic))
+            {
+                errors.AddRange(keyErrors);
+            }
+
             var address = Read<string>(job.BrokerageData, "dydx-address", errors);
-            var subaccountNumber = Read<int>(job.BrokerageData, "dydx-subaccount-number", errors);
-            var nodeUrl = Read<string>(job.BrokerageData, "dydx-node-api-url", errors);
-            var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-url", errors);
+            var subaccountNumber = Read<uint>(job.BrokerageData, "dydx-subaccount-number", errors);
+            var nodeRestUrl = Read<string>(job.BrokerageData, "dydx-node-api-rest", errors);
+            var nodeGrpcUrl = Read<string>(job.BrokerageData, "dydx-node-api-grpc", errors);
+            var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-rest", errors);
+            var chainId = Read<string>(job.BrokerageData, "dydx-chain-id", errors);
 
             if (errors.Count != 0)
             {
@@ -83,7 +100,17 @@ namespace QuantConnect.Brokerages.dYdX
                 Config.Get("data-aggregator", "QuantConnect.Lean.Engine.DataFeeds.AggregationManager"),
                 forceTypeNameOnExisting: false);
             var brokerage =
-                new dYdXBrokerage(address, subaccountNumber, nodeUrl, indexerUrl, algorithm, aggregator, job);
+                new dYdXBrokerage(
+                    privateKey,
+                    mnemonic,
+                    address,
+                    chainId,
+                    subaccountNumber,
+                    nodeRestUrl,
+                    nodeGrpcUrl,
+                    indexerUrl,
+                    algorithm,
+                    aggregator, job);
             Composer.Instance.AddPart<IDataQueueHandler>(brokerage);
 
             return brokerage;

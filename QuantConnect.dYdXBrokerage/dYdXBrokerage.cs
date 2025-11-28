@@ -19,6 +19,8 @@ using QuantConnect.Packets;
 using QuantConnect.Interfaces;
 using System.Collections.Generic;
 using QuantConnect.Brokerages.dYdX.Api;
+using QuantConnect.Brokerages.dYdX.Domain;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -28,19 +30,25 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     private const string MarketName = Market.dYdX;
     private const SecurityType SecurityType = QuantConnect.SecurityType.CryptoFuture;
 
-    private int _subaccountNumber;
     private IAlgorithm _algorithm;
     private IDataAggregator _aggregator;
     private LiveNodePacket _job;
     private readonly EventBasedDataQueueHandlerSubscriptionManager _subscriptionManager;
+
+    private Domain.Market _market;
     private SymbolPropertiesDatabaseSymbolMapper _symbolMapper;
 
+    private static readonly SymbolPropertiesDatabase _symbolPropertiesDatabase =
+        SymbolPropertiesDatabase.FromDataFolder();
+
     private Lazy<dYdXApiClient> _apiClientLazy;
+
+    private Wallet Wallet { get; set; }
 
     /// <summary>
     /// API client
     /// </summary>
-    protected dYdXApiClient ApiClient => _apiClientLazy.Value;
+    private dYdXApiClient ApiClient => _apiClientLazy.Value;
 
     /// <summary>
     /// Returns true if we're currently connected to the broker
@@ -58,14 +66,38 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// <summary>
     /// Creates a new instance
     /// </summary>
-    /// <param name="aggregator">consolidate ticks</param>
-    public dYdXBrokerage(string address, int subaccountNumber, string nodeUrl, string indexerUrl,
+    /// <param name="privateKey">The private key for the wallet</param>
+    /// <param name="mnemonic">The mnemonic phrase (12, 15, 18, 21, or 24 words)</param>
+    /// <param name="address">The address associated with the mnemonic</param>
+    /// <param name="chainId">Chain ID for the wallet</param>
+    /// <param name="subaccountNumber">The subaccount number to use for this wallet</param>
+    /// <param name="nodeRestUrl">The REST URL of the node to connect to</param>
+    /// <param name="nodeGrpcUrl">The gRPC URL of the node to connect to</param>
+    /// <param name="indexerRestUrl">The REST URL of the indexer to connect to</param>
+    /// <param name="algorithm">The algorithm instance</param>
+    /// <param name="aggregator">The aggregator instance</param>
+    /// <param name="job">The live node packet</param>
+    public dYdXBrokerage(string privateKey, string mnemonic, string address, string chainId, uint subaccountNumber,
+        string nodeRestUrl,
+        string nodeGrpcUrl,
+        string indexerRestUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job) :
         base(MarketName)
     {
-        Initialize(address, subaccountNumber, nodeUrl, indexerUrl, algorithm, aggregator, job);
+        Initialize(
+            privateKey,
+            mnemonic,
+            address,
+            chainId,
+            subaccountNumber,
+            nodeRestUrl,
+            nodeGrpcUrl,
+            indexerRestUrl,
+            algorithm,
+            aggregator,
+            job);
 
         _subscriptionManager = new EventBasedDataQueueHandlerSubscriptionManager();
         _subscriptionManager.SubscribeImpl += (s, t) => Subscribe(s);
@@ -81,7 +113,15 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         // _connectionRateLimiter = new RateGate();
     }
 
-    private void Initialize(string address, int subaccountNumber, string nodeUrl, string indexerUrl,
+    private void Initialize(
+        string privateKeyHex,
+        string mnemonic,
+        string address,
+        string chainId,
+        uint subaccountNumber,
+        string nodeRestUrl,
+        string nodeGrpcUrl,
+        string indexerRestUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job)
@@ -89,7 +129,6 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         _job = job;
         _algorithm = algorithm;
         _aggregator = aggregator;
-        _subaccountNumber = subaccountNumber;
 
         _symbolMapper = new SymbolPropertiesDatabaseSymbolMapper(MarketName);
 
@@ -104,16 +143,47 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
                     throw new Exception("Address is missing");
                 }
 
-                var client = GetApiClient(address, nodeUrl, indexerUrl);
+                var client = GetApiClient(nodeRestUrl, nodeGrpcUrl, indexerRestUrl);
 
                 return client;
             });
+
+            var wallet = BuildWallet(ApiClient, privateKeyHex, mnemonic, address, chainId, subaccountNumber);
+
+            if (wallet == null)
+            {
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, -1, "Mnemonic and PrivateKey"));
+                throw new Exception("Mnemonic and PrivateKey is missing");
+            }
+
+            Wallet = wallet;
+            _market = new Domain.Market(wallet, _symbolMapper, _symbolPropertiesDatabase, ApiClient);
+        }
+    }
+
+    private dYdXApiClient GetApiClient(string nodeRestUrl, string nodeGrpcUrl, string indexerUrl)
+    {
+        return new dYdXApiClient(nodeRestUrl, nodeGrpcUrl, indexerUrl);
+    }
+
+    private Wallet BuildWallet(dYdXApiClient apiClient,
+        string privateKeyHex,
+        string mnemonic,
+        string address,
+        string chainId,
+        uint subaccountNumber)
+    {
+        if (!string.IsNullOrEmpty(privateKeyHex))
+        {
+            return Wallet.FromPrivateKey(apiClient, privateKeyHex, address, chainId, subaccountNumber);
         }
 
-        dYdXApiClient GetApiClient(string address, string nodeUrl, string indexerUrl)
+        if (!string.IsNullOrEmpty(mnemonic))
         {
-            return new dYdXApiClient(address, nodeUrl, indexerUrl);
+            return Wallet.FromMnemonic(apiClient, mnemonic, address, chainId, subaccountNumber);
         }
+
+        return null;
     }
 
     #region IDataQueueHandler
