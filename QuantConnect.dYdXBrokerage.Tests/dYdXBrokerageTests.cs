@@ -42,6 +42,7 @@ namespace QuantConnect.Brokerages.dYdX.Tests
             var nodeUrlRest = Config.Get("dydx-node-api-rest");
             var nodeUrlGrpc = Config.Get("dydx-node-api-grpc");
             var indexerUrlRest = Config.Get("dydx-indexer-api-rest");
+            var indexerUrlWss = Config.Get("dydx-indexer-api-wss");
             var chainId = Config.Get("dydx-chain-id");
 
             IAlgorithm algorithm = Mock.Of<IAlgorithm>();
@@ -54,6 +55,7 @@ namespace QuantConnect.Brokerages.dYdX.Tests
                 nodeUrlRest,
                 nodeUrlGrpc,
                 indexerUrlRest,
+                indexerUrlWss,
                 algorithm,
                 null,
                 null);

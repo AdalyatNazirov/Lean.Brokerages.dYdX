@@ -18,28 +18,36 @@ using QuantConnect.Data;
 using QuantConnect.Packets;
 using QuantConnect.Interfaces;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using QuantConnect.Brokerages.dYdX.Api;
 using QuantConnect.Brokerages.dYdX.Domain;
+using QuantConnect.Brokerages.dYdX.Models.WebSockets;
 using QuantConnect.Securities;
+using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages.dYdX;
 
 [BrokerageFactory(typeof(dYdXBrokerageFactory))]
-public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUniverseProvider
+public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler, IDataQueueUniverseProvider
 {
     private const string MarketName = Market.dYdX;
     private const SecurityType SecurityType = QuantConnect.SecurityType.CryptoFuture;
+
+    private string _indexerWssUrl;
 
     private IAlgorithm _algorithm;
     private IDataAggregator _aggregator;
     private LiveNodePacket _job;
     private readonly EventBasedDataQueueHandlerSubscriptionManager _subscriptionManager;
+    private RateGate _connectionRateLimiter;
 
     private Domain.Market _market;
     private SymbolPropertiesDatabaseSymbolMapper _symbolMapper;
 
-    private static readonly SymbolPropertiesDatabase _symbolPropertiesDatabase =
+    private static readonly SymbolPropertiesDatabase SymbolPropertiesDatabase =
         SymbolPropertiesDatabase.FromDataFolder();
+
+    private BrokerageConcurrentMessageHandler<WebSocketMessage> _messageHandler;
 
     private Lazy<dYdXApiClient> _apiClientLazy;
 
@@ -49,11 +57,6 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// API client
     /// </summary>
     private dYdXApiClient ApiClient => _apiClientLazy.Value;
-
-    /// <summary>
-    /// Returns true if we're currently connected to the broker
-    /// </summary>
-    public override bool IsConnected => _apiClientLazy?.IsValueCreated ?? false;
 
     /// <summary>
     /// Parameterless constructor for brokerage
@@ -74,6 +77,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
     /// <param name="nodeRestUrl">The REST URL of the node to connect to</param>
     /// <param name="nodeGrpcUrl">The gRPC URL of the node to connect to</param>
     /// <param name="indexerRestUrl">The REST URL of the indexer to connect to</param>
+    /// <param name="indexerWssUrl">The WebSocket URL of the indexer to connect to</param>
     /// <param name="algorithm">The algorithm instance</param>
     /// <param name="aggregator">The aggregator instance</param>
     /// <param name="job">The live node packet</param>
@@ -81,6 +85,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string nodeRestUrl,
         string nodeGrpcUrl,
         string indexerRestUrl,
+        string indexerWssUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job) :
@@ -95,6 +100,7 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
             nodeRestUrl,
             nodeGrpcUrl,
             indexerRestUrl,
+            indexerWssUrl,
             algorithm,
             aggregator,
             job);
@@ -102,15 +108,6 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         _subscriptionManager = new EventBasedDataQueueHandlerSubscriptionManager();
         _subscriptionManager.SubscribeImpl += (s, t) => Subscribe(s);
         _subscriptionManager.UnsubscribeImpl += (s, t) => Unsubscribe(s);
-
-        // Useful for some brokerages:
-
-        // Brokerage helper class to lock websocket message stream while executing an action, for example placing an order
-        // avoid race condition with placing an order and getting filled events before finished placing
-        // _messageHandler = new BrokerageConcurrentMessageHandler<>();
-
-        // Rate gate limiter useful for API/WS calls
-        // _connectionRateLimiter = new RateGate();
     }
 
     private void Initialize(
@@ -122,15 +119,29 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         string nodeRestUrl,
         string nodeGrpcUrl,
         string indexerRestUrl,
+        string indexerWssUrl,
         IAlgorithm algorithm,
         IDataAggregator aggregator,
         LiveNodePacket job)
     {
+        if (IsInitialized)
+        {
+            return;
+        }
+
+        base.Initialize(indexerWssUrl, new WebSocketClientWrapper(), null, null, null);
+
+        _indexerWssUrl = indexerWssUrl;
         _job = job;
         _algorithm = algorithm;
         _aggregator = aggregator;
 
         _symbolMapper = new SymbolPropertiesDatabaseSymbolMapper(MarketName);
+
+        _messageHandler = new BrokerageConcurrentMessageHandler<WebSocketMessage>(OnMessageReceived);
+
+        // Rate gate limiter useful for API/WS calls
+        _connectionRateLimiter = new RateGate(2, TimeSpan.FromSeconds(1));
 
         // can be null if dYdXBrokerage is used as DataQueueHandler only
         if (_algorithm != null)
@@ -144,7 +155,6 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
                 }
 
                 var client = GetApiClient(nodeRestUrl, nodeGrpcUrl, indexerRestUrl);
-
                 return client;
             });
 
@@ -157,7 +167,9 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
             }
 
             Wallet = wallet;
-            _market = new Domain.Market(wallet, _symbolMapper, _symbolPropertiesDatabase, ApiClient);
+            _market = new Domain.Market(wallet, _symbolMapper, SymbolPropertiesDatabase, ApiClient);
+
+            Connect();
         }
     }
 
@@ -186,49 +198,6 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
         return null;
     }
 
-    #region IDataQueueHandler
-
-    /// <summary>
-    /// Subscribe to the specified configuration
-    /// </summary>
-    /// <param name="dataConfig">defines the parameters to subscribe to a data feed</param>
-    /// <param name="newDataAvailableHandler">handler to be fired on new data available</param>
-    /// <returns>The new enumerator for this subscription request</returns>
-    public IEnumerator<BaseData> Subscribe(SubscriptionDataConfig dataConfig, EventHandler newDataAvailableHandler)
-    {
-        if (!CanSubscribe(dataConfig.Symbol))
-        {
-            return null;
-        }
-
-        var enumerator = _aggregator.Add(dataConfig, newDataAvailableHandler);
-        _subscriptionManager.Subscribe(dataConfig);
-
-        return enumerator;
-    }
-
-    /// <summary>
-    /// Removes the specified configuration
-    /// </summary>
-    /// <param name="dataConfig">Subscription config to be removed</param>
-    public void Unsubscribe(SubscriptionDataConfig dataConfig)
-    {
-        _subscriptionManager.Unsubscribe(dataConfig);
-        _aggregator.Remove(dataConfig);
-    }
-
-    /// <summary>
-    /// Sets the job we're subscribing for
-    /// </summary>
-    /// <param name="job">Job we're subscribing for</param>
-    public void SetJob(LiveNodePacket job)
-    {
-        throw new NotImplementedException();
-    }
-
-    #endregion
-
-
     #region IDataQueueUniverseProvider
 
     /// <summary>
@@ -256,6 +225,11 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
 
     #endregion
 
+    /// <summary>
+    /// Checks if this brokerage supports the specified symbol
+    /// </summary>
+    /// <param name="symbol">The symbol</param>
+    /// <returns>returns true if brokerage supports the specified symbol; otherwise false</returns>
     private bool CanSubscribe(Symbol symbol)
     {
         if (symbol.Value.IndexOfInvariant("universe", true) != -1 || symbol.IsCanonical())
@@ -263,16 +237,31 @@ public partial class dYdXBrokerage : Brokerage, IDataQueueHandler, IDataQueueUni
             return false;
         }
 
-        throw new NotImplementedException();
+        return symbol.SecurityType == SecurityType.CryptoFuture &&
+               symbol.ID.Market == MarketName &&
+               _symbolMapper.IsKnownLeanSymbol(symbol);
     }
 
     /// <summary>
     /// Adds the specified symbols to the subscription
     /// </summary>
     /// <param name="symbols">The symbols to be added keyed by SecurityType</param>
-    private bool Subscribe(IEnumerable<Symbol> symbols)
+    protected override bool Subscribe(IEnumerable<Symbol> symbols)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
+        return true;
+    }
+
+    private bool Subscribe(string channel, bool batched = false)
+    {
+        _connectionRateLimiter.WaitToProceed();
+        WebSocket.Send(JsonConvert.SerializeObject(new SubscribeRequestSchema
+            {
+                Channel = channel,
+                Batched = false
+            }
+        ));
+        return true;
     }
 
     /// <summary>

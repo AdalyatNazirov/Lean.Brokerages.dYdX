@@ -46,6 +46,7 @@ namespace QuantConnect.Brokerages.dYdX
             { "dydx-node-api-rest", Config.Get("dydx-node-api-rest") },
             { "dydx-node-api-grpc", Config.Get("dydx-node-api-grpc") },
             { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest") },
+            { "dydx-indexer-api-wss", Config.Get("dydx-indexer-api-wss") },
             { "dydx-chain-id", Config.Get("dydx-chain-id") }
         };
 
@@ -87,7 +88,8 @@ namespace QuantConnect.Brokerages.dYdX
             var subaccountNumber = Read<uint>(job.BrokerageData, "dydx-subaccount-number", errors);
             var nodeRestUrl = Read<string>(job.BrokerageData, "dydx-node-api-rest", errors);
             var nodeGrpcUrl = Read<string>(job.BrokerageData, "dydx-node-api-grpc", errors);
-            var indexerUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-rest", errors);
+            var indexerRestUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-rest", errors);
+            var indexerWssUrl = Read<string>(job.BrokerageData, "dydx-indexer-api-wss", errors);
             var chainId = Read<string>(job.BrokerageData, "dydx-chain-id", errors);
 
             if (errors.Count != 0)
@@ -108,7 +110,8 @@ namespace QuantConnect.Brokerages.dYdX
                     subaccountNumber,
                     nodeRestUrl,
                     nodeGrpcUrl,
-                    indexerUrl,
+                    indexerRestUrl,
+                    indexerWssUrl,
                     algorithm,
                     aggregator, job);
             Composer.Instance.AddPart<IDataQueueHandler>(brokerage);

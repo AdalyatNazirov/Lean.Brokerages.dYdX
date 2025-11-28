@@ -211,6 +211,10 @@ public partial class dYdXBrokerage
 
         _ = ApiClient;
         Log.Trace($"Connected {ApiClient}");
+
+        // Subscribe to market data
+        ConnectSync();
+        Subscribe("v4_markets", true);
     }
 
     /// <summary>
@@ -222,5 +226,7 @@ public partial class dYdXBrokerage
         {
             _apiClientLazy.Value.DisposeSafely();
         }
+
+        SubscriptionManager?.DisposeSafely();
     }
 }
