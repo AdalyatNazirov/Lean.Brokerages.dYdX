@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Models;
 
@@ -31,5 +32,11 @@ public class dYdXIndexerClient(string baseUrl)
     {
         var futureData = Extensions.DownloadData($"{baseUrl.TrimEnd('/')}");
         return _restClient.Get<ExchangeInfo>("/v4/perpetualMarkets");
+    }
+
+    public IEnumerable<OrderDto> GetOpenOrders(Wallet wallet)
+    {
+        return _restClient.Get<IEnumerable<OrderDto>>(
+            $"/v4/orders?address={wallet.Address}&subaccountNumber={wallet.SubaccountNumber}&status=OPEN");
     }
 }

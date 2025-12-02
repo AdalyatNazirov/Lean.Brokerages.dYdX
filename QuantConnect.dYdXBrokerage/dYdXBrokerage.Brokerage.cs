@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
 using QuantConnect.Orders.Fees;
 using QuantConnect.Securities;
+using Order = QuantConnect.Orders.Order;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -14,14 +16,24 @@ public partial class dYdXBrokerage
 {
     /// <summary>
     /// Gets all open orders on the account.
-    /// NOTE: The order objects returned do not have QC order IDs.
     /// </summary>
-    /// <returns>The open orders returned from IB</returns>
+    /// <returns>The open orders returned from dYdX</returns>
     public override List<Order> GetOpenOrders()
     {
-        // TODO: Implement
-        // throw new NotImlementedException();
-        return [];
+        var orders = new List<Order>();
+        var dydxOrders = ApiClient.Indexer.GetOpenOrders(Wallet);
+        foreach (var dydxOrder in dydxOrders)
+        {
+            var order = _market.ParseOrder(dydxOrder);
+            if (order.Status.IsClosed())
+            {
+                continue;
+            }
+
+            orders.Add(order);
+        }
+
+        return orders;
     }
 
     /// <summary>

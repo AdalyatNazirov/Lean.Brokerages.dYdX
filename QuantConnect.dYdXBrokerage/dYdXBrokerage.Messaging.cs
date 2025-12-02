@@ -42,6 +42,8 @@ public partial class dYdXBrokerage
                 return;
             }
 
+            // TODO: send "pong" response
+
             var channel = jObj.Value<string>("channel");
             switch (channel)
             {
@@ -117,7 +119,7 @@ public partial class dYdXBrokerage
 
             foreach (var priceKvp in update.OraclePrices)
             {
-                _market.UpdateOraclePrice(priceKvp.Value.MarketId, priceKvp.Value.OraclePrice);
+                _market.UpdateOraclePrice(priceKvp.Key, priceKvp.Value.OraclePrice);
             }
         }
     }
