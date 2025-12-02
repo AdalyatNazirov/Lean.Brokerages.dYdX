@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
-using Microsoft.VisualBasic;
 using QuantConnect.Brokerages.dYdX.Api;
 using QuantConnect.Brokerages.dYdX.Domain.Enums;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.Clob;
@@ -23,8 +20,7 @@ public class Market
     private readonly ISymbolMapper _symbolMapper;
     private readonly SymbolPropertiesDatabase _symbolPropertiesDatabase;
     private readonly dYdXApiClient _apiClient;
-    private readonly ConcurrentDictionary<uint, Models.Symbol> _markets = new();
-    private readonly Lock _refreshLock = new();
+    private readonly Dictionary<uint, Models.Symbol> _markets = new();
     private DateTime _lastRefreshTime;
 
     public const ulong DefaultGasLimit = 1_000_000;
@@ -60,32 +56,27 @@ public class Market
 
     public void RefreshMarkets(IEnumerable<Models.Symbol> markets = null)
     {
-        lock (_refreshLock)
+        if (DateTime.UtcNow - _lastRefreshTime < TimeSpan.FromMinutes(5))
         {
-            if (DateTime.UtcNow - _lastRefreshTime < TimeSpan.FromMinutes(5))
-            {
-                return;
-            }
-
-            markets ??= _apiClient.Indexer.GetExchangeInfo().Symbols.Values;
-
-            foreach (var symbol in markets)
-            {
-                _markets.AddOrUpdate(symbol.ClobPairId, symbol, (_, __) => symbol);
-            }
-
-            _lastRefreshTime = DateTime.UtcNow;
+            return;
         }
+
+        _markets.Clear();
+        markets ??= _apiClient.Indexer.GetExchangeInfo().Symbols.Values;
+
+        foreach (var symbol in markets)
+        {
+            _markets.Add(symbol.ClobPairId, symbol);
+        }
+
+        _lastRefreshTime = DateTime.UtcNow;
     }
 
     public void UpdateOraclePrice(uint marketTicker, decimal oraclePrice)
     {
         if (_markets.TryGetValue(marketTicker, out var marketInfo))
         {
-            lock (marketInfo)
-            {
-                marketInfo.OraclePrice = oraclePrice;
-            }
+            marketInfo.OraclePrice = oraclePrice;
         }
     }
 
