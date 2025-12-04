@@ -4,6 +4,7 @@ using Cosmos.Crypto.Secp256K1;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
+using Newtonsoft.Json;
 using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Domain.Enums;
 using QuantConnect.Brokerages.dYdX.Models;
@@ -11,6 +12,7 @@ using QuantConnect.dYdXBrokerage.Cosmos.Base.Tendermint.V1Beta1;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx.Signing;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.Clob;
+using QuantConnect.Logging;
 using QuantConnect.Util;
 using Order = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order;
 using TendermintService = QuantConnect.dYdXBrokerage.Cosmos.Base.Tendermint.V1Beta1.Service;
@@ -73,6 +75,8 @@ public class dYdXNodeClient : IDisposable
         var txBody = BuildPlaceOrderBodyTxBody(order);
         var response = BroadcastTransaction(wallet, txBody, gasLimit);
 
+        Log.Debug($"dYdX Order Placed: {order.OrderId.ClientId}");
+        Log.Debug(JsonConvert.SerializeObject(response, Formatting.Indented));
         return new dYdXPlaceOrderResponse
         {
             Code = response.TxResponse.Code,

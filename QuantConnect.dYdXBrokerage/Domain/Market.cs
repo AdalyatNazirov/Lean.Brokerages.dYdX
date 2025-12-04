@@ -21,7 +21,9 @@ public class Market
     private readonly SymbolPropertiesDatabase _symbolPropertiesDatabase;
     private readonly dYdXApiClient _apiClient;
     private readonly Dictionary<string, Models.Symbol> _markets = new();
-    private DateTime _lastRefreshTime;
+    private uint _lastBlockHeight;
+    private DateTime _lastMarketRefreshTime;
+    private DateTime _lastBlockHeightUpdateTime;
 
     public const ulong DefaultGasLimit = 1_000_000;
     private const uint ShortBlockWindow = 20u;
@@ -41,7 +43,7 @@ public class Market
 
     private Models.Symbol GetMarketInfo(string marketTicker)
     {
-        if (DateTime.UtcNow - _lastRefreshTime > TimeSpan.FromMinutes(5))
+        if (DateTime.UtcNow - _lastMarketRefreshTime > TimeSpan.FromMinutes(5))
         {
             RefreshMarkets();
         }
@@ -56,11 +58,6 @@ public class Market
 
     public void RefreshMarkets(IEnumerable<Models.Symbol> markets = null)
     {
-        if (DateTime.UtcNow - _lastRefreshTime < TimeSpan.FromMinutes(5))
-        {
-            return;
-        }
-
         _markets.Clear();
         markets ??= _apiClient.Indexer.GetExchangeInfo().Symbols.Values;
 
@@ -74,7 +71,7 @@ public class Market
             _markets.Add(symbol.Ticker, symbol);
         }
 
-        _lastRefreshTime = DateTime.UtcNow;
+        _lastMarketRefreshTime = DateTime.UtcNow;
     }
 
     public void UpdateOraclePrice(string marketTicker, decimal oraclePrice)
@@ -142,7 +139,7 @@ public class Market
         };
 
         order.Status = ParseOrderStatus(orderDto.Status);
-        order.BrokerId.Add(orderDto.ClientId);
+        order.BrokerId.Add(orderDto.Id);
 
         return order;
     }
@@ -171,7 +168,7 @@ public class Market
         };
     }
 
-    public dYdXOrder CreateOrder(Order order)
+    public dYdXOrder CreateOrder(Order order, uint clientId)
     {
         var orderProperties = order.Properties as dYdXOrderProperties;
         var symbolProperties = GetSymbolProperties(order);
@@ -184,9 +181,7 @@ public class Market
             OrderId = new OrderId
             {
                 SubaccountId = new SubaccountId { Owner = _wallet.Address, Number = _wallet.SubaccountNumber },
-                // TODO: dYdX does not return order Id; LEAN orderId always starts from 1 on each run, so we use ClientId as a workaround
-                // ClientId = checked((uint)order.Id),
-                ClientId = RandomUInt32(),
+                ClientId = clientId,
                 OrderFlags = (uint)orderFlag,
                 ClobPairId = marketInfo.ClobPairId
             },
@@ -239,8 +234,7 @@ public class Market
             : oraclePrice * (1 - MarketPriceBuffer);
 
         dydxOrder.Subticks = CalculateSubticks(targetPrice, symbolProperties, marketInfo);
-        dydxOrder.GoodTilBlock = _apiClient.Node.GetLatestBlockHeight() +
-                                 (orderProperties?.GoodTilBlockOffset ?? ShortBlockWindow);
+        dydxOrder.GoodTilBlock = GetBlockHeight() + (orderProperties?.GoodTilBlockOffset ?? ShortBlockWindow);
     }
 
     private void ConfigureLongTermOrder(dYdXOrder dydxOrder, Order order, Models.Symbol marketInfo,
@@ -329,8 +323,19 @@ public class Market
             : QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order.Types.Side.Sell;
     }
 
-    private static uint RandomUInt32()
+    private uint GetBlockHeight()
     {
-        return (uint)(Random.Shared.Next(1 << 30)) << 2 | (uint)(Random.Shared.Next(1 << 2));
+        if (DateTime.UtcNow - _lastBlockHeightUpdateTime > TimeSpan.FromSeconds(5))
+        {
+            UpdateBlockHeigh(_apiClient.Node.GetLatestBlockHeight());
+        }
+
+        return _lastBlockHeight;
+    }
+
+    public void UpdateBlockHeigh(uint blockHeight)
+    {
+        _lastBlockHeight = blockHeight;
+        _lastBlockHeightUpdateTime = DateTime.UtcNow;
     }
 }

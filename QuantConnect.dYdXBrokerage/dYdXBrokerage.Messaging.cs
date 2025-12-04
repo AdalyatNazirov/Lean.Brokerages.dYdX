@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.Brokerages.dYdX.Models.WebSockets;
 using QuantConnect.Logging;
+using QuantConnect.Orders;
+using QuantConnect.Orders.Fees;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -49,6 +52,9 @@ public partial class dYdXBrokerage
             {
                 case "v4_markets":
                     OnMarketUpdate(jObj);
+                    break;
+                case "v4_subaccounts":
+                    OnSubaccountUpdate(jObj);
                     break;
             }
         }
@@ -95,6 +101,71 @@ public partial class dYdXBrokerage
 
                 break;
         }
+    }
+
+    private void OnSubaccountUpdate(JObject jObj)
+    {
+        var contents = jObj["contents"];
+        if (contents == null) return;
+
+        // 'contents' can be an Object (in 'subscribed') or an Array (in 'channel_batch_data')
+        switch (jObj.Value<string>("type"))
+        {
+            case "subscribed":
+                // do nothing as we fetched subaccount initial data
+                break;
+
+            case "channel_data":
+                var subaccountUpdate = jObj.ToObject<DataResponseSchema<SubaccountsUpdateMessage>>();
+                if (subaccountUpdate.Contents?.BlockHeight > 0)
+                {
+                    UpdateBlockHeight(subaccountUpdate.Contents.BlockHeight.Value);
+                }
+
+                if (subaccountUpdate.Contents?.Orders?.Any() == true)
+                {
+                    HandleOrders(subaccountUpdate.Contents.Orders);
+                }
+
+                if (subaccountUpdate.Contents?.Fills?.Any() == true)
+                {
+                    HandleFills(subaccountUpdate.Contents.Fills);
+                }
+
+                break;
+        }
+    }
+
+    private void HandleOrders(List<OrderSubaccountMessage> contentsOrders)
+    {
+        foreach (var dydxOrder in contentsOrders)
+        {
+            if (_pendingOrders.TryRemove(dydxOrder.ClientId, out var tuple))
+            {
+                var (resetEvent, leanOrder) = tuple;
+                leanOrder.BrokerId.Add(dydxOrder.Id);
+                _orderBrokerIdToClientIdMap.TryAdd(dydxOrder.Id, dydxOrder.ClientId);
+                OnOrderEvent(new OrderEvent(leanOrder, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
+                {
+                    Status = OrderStatus.Submitted
+                });
+                resetEvent.Set();
+            }
+        }
+    }
+
+    private void HandleFills(List<FillSubaccountMessage> fills)
+    {
+        string fillsStr = string.Join(Environment.NewLine,
+            fills.Select(f => JsonConvert.SerializeObject(f, Formatting.Indented)));
+        Log.Debug($"Received {fills.Count} fills from subaccount");
+        Log.Debug(fillsStr);
+        // throw new NotImplementedException();
+    }
+
+    private void UpdateBlockHeight(uint blockHeight)
+    {
+        _market.UpdateBlockHeigh(blockHeight);
     }
 
     private void RefreshMarkets(ExchangeInfo exchangeInfo)

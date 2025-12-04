@@ -14,6 +14,7 @@
  */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using Newtonsoft.Json;
@@ -22,6 +23,7 @@ using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Models.WebSockets;
 using QuantConnect.Data;
 using QuantConnect.Interfaces;
+using QuantConnect.Orders;
 using QuantConnect.Packets;
 using QuantConnect.Securities;
 using QuantConnect.Util;
@@ -34,14 +36,14 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
     private const string MarketName = Market.dYdX;
     private const SecurityType SecurityType = QuantConnect.SecurityType.CryptoFuture;
 
-    private string _indexerWssUrl;
-
     private IAlgorithm _algorithm;
     private IDataAggregator _aggregator;
     private LiveNodePacket _job;
     private readonly EventBasedDataQueueHandlerSubscriptionManager _subscriptionManager;
     private RateGate _connectionRateLimiter;
-
+    private readonly ConcurrentDictionary<uint, Tuple<ManualResetEventSlim, Order>> _pendingOrders = new();
+    private readonly ConcurrentDictionary<string, uint> _orderBrokerIdToClientIdMap = new();
+    private static readonly TimeSpan WaitPlaceOrderEventTimeout = TimeSpan.FromSeconds(15);
     private Domain.Market _market;
     private SymbolPropertiesDatabaseSymbolMapper _symbolMapper;
 
@@ -134,7 +136,6 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
 
         base.Initialize(indexerWssUrl, new WebSocketClientWrapper(), null, null, null);
 
-        _indexerWssUrl = indexerWssUrl;
         _job = job;
         _algorithm = algorithm;
         _aggregator = aggregator;
