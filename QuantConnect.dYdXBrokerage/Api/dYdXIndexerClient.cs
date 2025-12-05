@@ -30,13 +30,17 @@ public class dYdXIndexerClient(string baseUrl)
 
     public ExchangeInfo GetExchangeInfo()
     {
-        var futureData = Extensions.DownloadData($"{baseUrl.TrimEnd('/')}");
         return _restClient.Get<ExchangeInfo>("/v4/perpetualMarkets");
     }
 
-    public IEnumerable<OrderDto> GetOpenOrders(Wallet wallet)
+    public IEnumerable<OrderDto> GetOpenOrders(Wallet wallet, string status = "OPEN")
     {
-        return _restClient.Get<IEnumerable<OrderDto>>(
-            $"/v4/orders?address={wallet.Address}&subaccountNumber={wallet.SubaccountNumber}&status=OPEN");
+        var path = $"/v4/orders?address={wallet.Address}&subaccountNumber={wallet.SubaccountNumber}";
+        if (!string.IsNullOrEmpty(status))
+        {
+            path += $"&status={Uri.EscapeDataString(status)}";
+        }
+
+        return _restClient.Get<IEnumerable<OrderDto>>(path);
     }
 }

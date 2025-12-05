@@ -113,7 +113,9 @@ namespace QuantConnect.Brokerages.dYdX
                     indexerRestUrl,
                     indexerWssUrl,
                     algorithm,
-                    aggregator, job);
+                    algorithm?.Transactions,
+                    aggregator,
+                    job);
             Composer.Instance.AddPart<IDataQueueHandler>(brokerage);
 
             return brokerage;

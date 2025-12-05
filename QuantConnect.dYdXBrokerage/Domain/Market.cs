@@ -8,7 +8,6 @@ using QuantConnect.Orders;
 using QuantConnect.Orders.TimeInForces;
 using QuantConnect.Securities;
 using QuantConnect.Brokerages.dYdX.Models;
-using QuantConnect.Brokerages.dYdX.Models.Enums; // Add this namespace for OrderDto
 using dYdXOrder = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order;
 using Order = QuantConnect.Orders.Order;
 
@@ -90,9 +89,14 @@ public class Market
         if (!string.IsNullOrEmpty(orderDto.Size)) size = orderDto.Size.ToDecimal();
         if (!string.IsNullOrEmpty(orderDto.Price)) price = orderDto.Price.ToDecimal();
         if (!string.IsNullOrEmpty(orderDto.TriggerPrice)) triggerPrice = orderDto.TriggerPrice.ToDecimal();
-        var quantity = orderDto.Side == OrderSide.Buy ? size : -size;
+        var quantity = orderDto.Side switch
+        {
+            OrderDirection.Buy => size,
+            OrderDirection.Sell => -size,
+            _ => throw new Exception($"Unexpected code path: orderDirection for {orderDto.Id}")
+        };
 
-        var orderType = ParseOrderType(orderDto.Type);
+        var orderType = ParseOrderType(orderDto);
         Order order = orderType switch
         {
             OrderType.Limit => new LimitOrder(
@@ -144,24 +148,33 @@ public class Market
         return order;
     }
 
-    private OrderType ParseOrderType(string type)
+    private OrderType ParseOrderType(OrderDto orderDto)
     {
-        return type?.ToUpperInvariant() switch
+        var orderFlags = orderDto.OrderFlags;
+        if (!Enum.IsDefined(typeof(OrderFlags), orderFlags))
         {
-            "LIMIT" => OrderType.Limit,
-            "MARKET" => OrderType.Market,
-            "STOP_LIMIT" => OrderType.StopLimit,
-            "STOP_MARKET" => OrderType.StopMarket,
-            _ => OrderType.Market
+            throw new InvalidCastException($"Unexpected : orderFlags for {orderFlags}");
+        }
+
+        return (OrderFlags)orderFlags switch
+        {
+            OrderFlags.LongTerm => OrderType.Limit,
+            OrderFlags.ShortTerm when !string.IsNullOrEmpty(orderDto.GoodTilBlockTime) => OrderType.Limit,
+            OrderFlags.ShortTerm when !string.IsNullOrEmpty(orderDto.GoodTilBlock) => OrderType.Market,
+            OrderFlags.Conditional when orderDto.ClientMetadata == 1u => OrderType.StopMarket,
+            OrderFlags.Conditional => OrderType.StopLimit,
+            _ => OrderType.Limit
         };
     }
 
-    private OrderStatus ParseOrderStatus(string status)
+    public static OrderStatus ParseOrderStatus(string status)
     {
         return status?.ToUpperInvariant() switch
         {
+            "BEST_EFFORT_OPENED" => OrderStatus.Submitted,
             "OPEN" => OrderStatus.Submitted,
             "FILLED" => OrderStatus.Filled,
+            "BEST_EFFORT_CANCELED" => OrderStatus.Canceled,
             "CANCELED" => OrderStatus.Canceled,
             "PENDING" => OrderStatus.New,
             _ => OrderStatus.None
@@ -211,7 +224,8 @@ public class Market
         var symbolProperties = _symbolPropertiesDatabase.GetSymbolProperties(
             order.Symbol.ID.Market,
             order.Symbol,
-            order.Symbol.SecurityType, Currencies.USD);
+            order.Symbol.SecurityType,
+            Currencies.USD);
 
         if (symbolProperties == null)
         {
@@ -242,6 +256,7 @@ public class Market
     {
         if (order.TimeInForce is not GoodTilDateTimeInForce dateTimeInForce)
         {
+            // TODO: how to convert other time in force types?
             throw new Exception($"Expected GoodTilDateTimeInForce {order.Type}");
         }
 
@@ -268,11 +283,9 @@ public class Market
     {
         return type switch
         {
-            OrderType.Market => dYdXOrder.Types.TimeInForce.Ioc,
             OrderType.Limit or OrderType.StopLimit => postOnly
                 ? dYdXOrder.Types.TimeInForce.PostOnly
                 : dYdXOrder.Types.TimeInForce.Unspecified,
-            OrderType.StopMarket => dYdXOrder.Types.TimeInForce.Ioc,
             _ => dYdXOrder.Types.TimeInForce.Unspecified
         };
     }
@@ -281,7 +294,7 @@ public class Market
     {
         return type switch
         {
-            OrderType.Market or OrderType.StopMarket or OrderType.StopLimit => 1u,
+            OrderType.Market or OrderType.StopMarket => 1u,
             _ => 0u
         };
     }
@@ -291,7 +304,7 @@ public class Market
         return order.Type switch
         {
             OrderType.Market => OrderFlags.ShortTerm,
-            OrderType.Limit => order.TimeInForce is GoodTilDateTimeInForce ? OrderFlags.LongTerm : OrderFlags.ShortTerm,
+            OrderType.Limit => OrderFlags.LongTerm,
             OrderType.StopLimit or OrderType.StopMarket => OrderFlags.Conditional,
             _ => throw new Exception($"Unexpected code path: orderFlags for {order.Type}")
         };

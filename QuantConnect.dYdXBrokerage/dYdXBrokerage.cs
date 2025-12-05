@@ -37,6 +37,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
     private const SecurityType SecurityType = QuantConnect.SecurityType.CryptoFuture;
 
     private IAlgorithm _algorithm;
+    private IOrderProvider _orderProvider;
     private IDataAggregator _aggregator;
     private LiveNodePacket _job;
     private readonly EventBasedDataQueueHandlerSubscriptionManager _subscriptionManager;
@@ -55,6 +56,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
     private Lazy<dYdXApiClient> _apiClientLazy;
 
     private ManualResetEvent _connectionConfirmedEvent = new(false);
+
 
     private Wallet Wallet { get; set; }
 
@@ -84,6 +86,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
     /// <param name="indexerRestUrl">The REST URL of the indexer to connect to</param>
     /// <param name="indexerWssUrl">The WebSocket URL of the indexer to connect to</param>
     /// <param name="algorithm">The algorithm instance</param>
+    /// <param name="orderProvider">The order provider instance</param>
     /// <param name="aggregator">The aggregator instance</param>
     /// <param name="job">The live node packet</param>
     public dYdXBrokerage(string privateKey, string mnemonic, string address, string chainId, uint subaccountNumber,
@@ -92,6 +95,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
         string indexerRestUrl,
         string indexerWssUrl,
         IAlgorithm algorithm,
+        IOrderProvider orderProvider,
         IDataAggregator aggregator,
         LiveNodePacket job) :
         base(MarketName)
@@ -107,6 +111,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
             indexerRestUrl,
             indexerWssUrl,
             algorithm,
+            orderProvider,
             aggregator,
             job);
 
@@ -126,6 +131,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
         string indexerRestUrl,
         string indexerWssUrl,
         IAlgorithm algorithm,
+        IOrderProvider orderProvider,
         IDataAggregator aggregator,
         LiveNodePacket job)
     {
@@ -139,6 +145,7 @@ public partial class dYdXBrokerage : BaseWebsocketsBrokerage, IDataQueueHandler,
         _job = job;
         _algorithm = algorithm;
         _aggregator = aggregator;
+        _orderProvider = orderProvider;
 
         _symbolMapper = new SymbolPropertiesDatabaseSymbolMapper(MarketName);
 

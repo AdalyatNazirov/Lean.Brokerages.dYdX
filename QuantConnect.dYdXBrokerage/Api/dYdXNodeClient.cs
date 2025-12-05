@@ -75,8 +75,6 @@ public class dYdXNodeClient : IDisposable
         var txBody = BuildPlaceOrderBodyTxBody(order);
         var response = BroadcastTransaction(wallet, txBody, gasLimit);
 
-        Log.Debug($"dYdX Order Placed: {order.OrderId.ClientId}");
-        Log.Debug(JsonConvert.SerializeObject(response, Formatting.Indented));
         return new dYdXPlaceOrderResponse
         {
             Code = response.TxResponse.Code,

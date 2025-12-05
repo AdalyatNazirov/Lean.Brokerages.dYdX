@@ -8,6 +8,7 @@ using QuantConnect.Brokerages.dYdX.Models.WebSockets;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
 using QuantConnect.Orders.Fees;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Brokerages.dYdX;
 
@@ -124,43 +125,118 @@ public partial class dYdXBrokerage
 
                 if (subaccountUpdate.Contents?.Orders?.Any() == true)
                 {
-                    HandleOrders(subaccountUpdate.Contents.Orders);
-                }
-
-                if (subaccountUpdate.Contents?.Fills?.Any() == true)
-                {
-                    HandleFills(subaccountUpdate.Contents.Fills);
+                    HandleOrders(subaccountUpdate.Contents);
                 }
 
                 break;
         }
     }
 
-    private void HandleOrders(List<OrderSubaccountMessage> contentsOrders)
+    private void HandleOrders(SubaccountsUpdateMessage contents)
     {
+        var contentsOrders = contents.Orders;
         foreach (var dydxOrder in contentsOrders)
         {
-            if (_pendingOrders.TryRemove(dydxOrder.ClientId, out var tuple))
+            switch (dydxOrder.Status)
             {
-                var (resetEvent, leanOrder) = tuple;
-                leanOrder.BrokerId.Add(dydxOrder.Id);
-                _orderBrokerIdToClientIdMap.TryAdd(dydxOrder.Id, dydxOrder.ClientId);
-                OnOrderEvent(new OrderEvent(leanOrder, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
-                {
-                    Status = OrderStatus.Submitted
-                });
-                resetEvent.Set();
+                case "BEST_EFFORT_OPENED":
+                    if (_pendingOrders.TryRemove(dydxOrder.ClientId, out var tuple))
+                    {
+                        var (resetEvent, leanOpenOrder) = tuple;
+                        leanOpenOrder.BrokerId.Add(dydxOrder.Id);
+                        _orderBrokerIdToClientIdMap.TryAdd(dydxOrder.Id, dydxOrder.ClientId);
+                        OnOrderEvent(new OrderEvent(leanOpenOrder, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
+                        {
+                            Status = OrderStatus.Submitted
+                        });
+                        resetEvent.Set();
+                    }
+
+                    break;
+
+                case "CANCELED":
+                case "BEST_EFFORT_CANCELED":
+                    var leanCancelOrder =
+                        _algorithm.Transactions.GetOrdersByBrokerageId(dydxOrder.Id)?.SingleOrDefault();
+                    if (leanCancelOrder != null)
+                    {
+                        OnOrderEvent(new OrderEvent(leanCancelOrder, DateTime.UtcNow, OrderFee.Zero, "dYdX Order Event")
+                        {
+                            Status = OrderStatus.Canceled
+                        });
+                    }
+
+                    break;
+
+                case "FILLED":
+                    var orderFills = contents.Fills?
+                        .Where(x => x.OrderId == dydxOrder.Id)
+                        .ToList();
+                    HandleFills(dydxOrder, orderFills);
+                    break;
+
+                default:
+                    Log.Error($"dYdXBrokerage.HandleOrders(): order status not handled: {dydxOrder.Status}");
+                    break;
             }
         }
     }
 
-    private void HandleFills(List<FillSubaccountMessage> fills)
+    private void HandleFills(OrderSubaccountMessage order, List<FillSubaccountMessage> orderFills)
     {
-        string fillsStr = string.Join(Environment.NewLine,
-            fills.Select(f => JsonConvert.SerializeObject(f, Formatting.Indented)));
-        Log.Debug($"Received {fills.Count} fills from subaccount");
-        Log.Debug(fillsStr);
-        // throw new NotImplementedException();
+        try
+        {
+            var leanOrder = _orderProvider.GetOrdersByBrokerageId(order.Id)?.SingleOrDefault();
+            if (leanOrder == null)
+            {
+                // not our order, nothing else to do here
+                Log.Error($"dYdXBrokerage.HandleFills(): order not found: {order.Id}");
+                return;
+            }
+
+            var finalOrderStatus = Domain.Market.ParseOrderStatus(order.Status);
+            var fills = orderFills.ToList();
+
+            for (int i = 0; i < fills.Count; i++)
+            {
+                var fill = fills[i];
+                var fillPrice = fill.Price;
+                var fillQuantity = fill.Side == OrderDirection.Sell
+                    ? -fill.QuoteAmount
+                    : fill.QuoteAmount;
+                var updTime = Time.ParseDate(fill.CreatedAt);
+                var orderFee = OrderFee.Zero;
+                if (fill.Fee.HasValue && fill.Fee.Value > 0)
+                {
+                    var symbol = _symbolMapper.GetLeanSymbol(fill.Ticker, SecurityType.CryptoFuture, MarketName);
+                    var symbolProps = SymbolPropertiesDatabase.GetSymbolProperties(MarketName, symbol,
+                        SecurityType.CryptoFuture, Currencies.USD);
+
+                    // TODO: fee in not in docs, but present in response. Not sure about fee currency
+                    // see ref. https://docs.dydx.xyz/types/fill_subaccount_message
+                    // might not be sent if zero fee
+                    orderFee = new OrderFee(new CashAmount(fill.Fee.Value, symbolProps.QuoteCurrency));
+                }
+
+                // no current order status
+                // TODO: check if we can get partially filled order status at all
+                // their API does not contain it https://docs.dydx.xyz/types/order_status#orderstatus
+                var status = i == fills.Count - 1 ? finalOrderStatus : OrderStatus.PartiallyFilled;
+                var orderEvent = new OrderEvent
+                (
+                    leanOrder.Id, leanOrder.Symbol, updTime, status,
+                    fill.Side, fillPrice, fillQuantity,
+                    orderFee, $"dYdX Order Event {fill.Side}"
+                );
+
+                OnOrderEvent(orderEvent);
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Error(e);
+            throw;
+        }
     }
 
     private void UpdateBlockHeight(uint blockHeight)

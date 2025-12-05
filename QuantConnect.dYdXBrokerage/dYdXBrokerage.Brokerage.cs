@@ -78,10 +78,11 @@ public partial class dYdXBrokerage
 
             return holdings;
         }
-        catch
+        catch (Exception err)
         {
-            // For safety, return empty on failure. Brokerage should surface errors via messaging if needed.
-            return [];
+            Log.Error(
+                $"dYdXBrokerage.GetAccountHoldings() Error: {err.Message} Source {err.Source} Stack {err.StackTrace}");
+            throw;
         }
     }
 
