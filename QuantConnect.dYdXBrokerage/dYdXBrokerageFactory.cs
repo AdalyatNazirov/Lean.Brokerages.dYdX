@@ -43,10 +43,10 @@ namespace QuantConnect.Brokerages.dYdX
             { "dydx-mnemonic", Config.Get("dydx-mnemonic") },
             { "dydx-address", Config.Get("dydx-address") },
             { "dydx-subaccount-number", Config.Get("dydx-subaccount-number") },
-            { "dydx-node-api-rest", Config.Get("dydx-node-api-rest") },
-            { "dydx-node-api-grpc", Config.Get("dydx-node-api-grpc") },
-            { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest") },
-            { "dydx-indexer-api-wss", Config.Get("dydx-indexer-api-wss") },
+            { "dydx-node-api-rest", Config.Get("dydx-node-api-rest", "https://test-dydx-rest.kingnodes.com") },
+            { "dydx-node-api-grpc", Config.Get("dydx-node-api-grpc", "https://test-dydx-rest.kingnodes.com:443") },
+            { "dydx-indexer-api-rest", Config.Get("dydx-indexer-api-rest", "https://indexer.v4testnet.dydx.exchange") },
+            { "dydx-indexer-api-wss", Config.Get("dydx-indexer-api-wss", "wss://indexer.v4testnet.dydx.exchange/v4/ws") },
             { "dydx-chain-id", Config.Get("dydx-chain-id") }
         };
 
