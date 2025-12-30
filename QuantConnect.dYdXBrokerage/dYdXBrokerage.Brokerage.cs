@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using QuantConnect.Brokerages.dYdX.Extensions;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
@@ -83,7 +84,7 @@ public partial class dYdXBrokerage
                 var holding = new Holding
                 {
                     Symbol = symbol,
-                    Quantity = pos.Quantity,
+                    Quantity = pos.Size,
                     AveragePrice = pos.EntryPrice,
                     UnrealizedPnL = pos.UnrealizedPnl
                 };
@@ -107,12 +108,13 @@ public partial class dYdXBrokerage
     /// <returns>The current cash balance for each currency available for trading</returns>
     public override List<CashAmount> GetCashBalance()
     {
-        var balances = _apiClient.Indexer.GetCashBalance(Wallet);
-        return balances
-            .Positions
-            .Where(b => b.Side == Models.Enums.PositionSide.Long)
-            .Select(b => new CashAmount(b.Size, b.Symbol.LazyToUpper()))
-            .ToList();
+        if (_algorithm == null)
+        {
+            return [];
+        }
+
+        var subaccount = _apiClient.Indexer.GetSubaccount(Wallet);
+        return subaccount.GetCashAmounts(SymbolPropertiesDatabase, _algorithm.BrokerageModel.AccountType);
     }
 
     /// <summary>
