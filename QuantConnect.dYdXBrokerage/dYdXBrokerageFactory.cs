@@ -41,7 +41,7 @@ namespace QuantConnect.Brokerages.dYdX
         {
             { "dydx-private-key-hex", Config.Get("dydx-private-key-hex") },
             { "dydx-address", Config.Get("dydx-address") },
-            { "dydx-subaccount-number", Config.Get("dydx-subaccount-number") },
+            { "dydx-subaccount-number", Config.Get("dydx-subaccount-number", "0") },
 
             // mainnet
             // use KingNodes by default for the reason of better testings, and no rest endpoint for OEGS
