@@ -23,34 +23,42 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
 using QuantConnect.Brokerages.dYdX.Domain;
 using QuantConnect.Brokerages.dYdX.Domain.Enums;
+using QuantConnect.Brokerages.dYdX.Exceptions;
 using QuantConnect.Brokerages.dYdX.Models;
 using QuantConnect.dYdXBrokerage.Cosmos.Base.Tendermint.V1Beta1;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx;
 using QuantConnect.dYdXBrokerage.Cosmos.Tx.Signing;
+using QuantConnect.dYdXBrokerage.Cosmos.Auth;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.AccountPlus;
 using QuantConnect.dYdXBrokerage.dYdXProtocol.Clob;
 using QuantConnect.Util;
 using Order = QuantConnect.dYdXBrokerage.dYdXProtocol.Clob.Order;
 using TendermintService = QuantConnect.dYdXBrokerage.Cosmos.Base.Tendermint.V1Beta1.Service;
 using TxService = QuantConnect.dYdXBrokerage.Cosmos.Tx.Service;
+using AccountPlusQuery = QuantConnect.dYdXBrokerage.dYdXProtocol.AccountPlus.Query;
+using AccountQuery = QuantConnect.dYdXBrokerage.Cosmos.Auth.Query;
+using BaseAccount = QuantConnect.dYdXBrokerage.Cosmos.Auth.BaseAccount;
 
 namespace QuantConnect.Brokerages.dYdX.Api;
 
 public class dYdXNodeClient : IDisposable
 {
+    private const int MaxRetries = 5;
+    private const int ErrorWrongSequence = 32;
     private const int ErrorCodeUnauthorized = 104;
 
-    private readonly dYdXRestClient _restClient;
     private readonly GrpcChannel _grpcChannel;
     private readonly TxService.ServiceClient _txService;
     private readonly TendermintService.ServiceClient _tendermintService;
-    private readonly Query.QueryClient _accountPlusService;
+    private readonly AccountPlusQuery.QueryClient _accountPlusService;
     private readonly RateGate _rateGate;
+    private readonly AccountQuery.QueryClient _accountService;
 
-    public dYdXNodeClient(string restUrl, string grpcUrl)
+    public event Action<BrokerageMessageEvent> BrokerageMessage;
+
+    public dYdXNodeClient(string grpcUrl)
     {
         _rateGate = new RateGate(250, TimeSpan.FromMinutes(1));
-        _restClient = new dYdXRestClient(restUrl.TrimEnd('/'), _rateGate);
 
         var grpcChannelOptions = new GrpcChannelOptions
         {
@@ -62,11 +70,13 @@ public class dYdXNodeClient : IDisposable
             }
         };
 
-        var uri = new Uri(grpcUrl.TrimEnd('/'));
+        // replace grpc:// with https:// to allow using standard DNS resolver
+        var uri = new Uri(grpcUrl.TrimEnd('/').Replace("grpc://", "https://"));
         _grpcChannel = GrpcChannel.ForAddress(uri, grpcChannelOptions);
         _txService = new TxService.ServiceClient(_grpcChannel);
         _tendermintService = new TendermintService.ServiceClient(_grpcChannel);
-        _accountPlusService = new Query.QueryClient(_grpcChannel);
+        _accountService = new AccountQuery.QueryClient(_grpcChannel);
+        _accountPlusService = new AccountPlusQuery.QueryClient(_grpcChannel);
     }
 
     public uint GetLatestBlockHeight()
@@ -77,8 +87,20 @@ public class dYdXNodeClient : IDisposable
 
     public dYdXAccount GetAccount(string address)
     {
-        var accountResponse = _restClient.Get<dYdXAccountResponse>($"cosmos/auth/v1beta1/accounts/{address}");
-        return accountResponse.Account;
+        _rateGate.WaitToProceed();
+        var account = _accountService.Account(new QueryAccountRequest { Address = address }).Account;
+        var accountProto = account.Unpack<BaseAccount>();
+
+        return new dYdXAccount
+        {
+            PublicKey = new dYdXPublicKey
+            {
+                Type = accountProto.PubKey.TypeUrl,
+                Key = accountProto.PubKey.Unpack<PubKey>().Key.ToBase64(),
+            },
+            AccountNumber = accountProto.AccountNumber,
+            Sequence = accountProto.Sequence
+        };
     }
 
     public IEnumerable<ulong> GetAuthenticators(string address)
@@ -130,36 +152,57 @@ public class dYdXNodeClient : IDisposable
         Wallet wallet,
         uint orderFlags,
         ulong gasLimit,
-        Action<TxBody> bodyBuilder)
+        Action<TxBody> bodyBuilder
+    )
     {
+        var retries = MaxRetries;
         while (true)
         {
+            if (retries == 0)
+            {
+                throw new InvalidOperationException($"Failed to execute transaction after {MaxRetries} retries");
+            }
+
+            retries--;
+
             // Explicitly use the Authenticator-based authentication method.
             // This ensures we rely on the authenticator ID rather than falling back
             // to wallet private keys or mnemonic phrases for transaction signing.
             if (!wallet.TryGetAuthenticatorId(out var authenticatorId))
             {
-                throw new InvalidOperationException("No authenticators found for the provided address");
+                throw new AuthenticatorKeyMismatchException();
             }
 
             var txBody = CreateTxBody(authenticatorId);
 
             bodyBuilder(txBody);
             var response = BroadcastTransaction(wallet, txBody, gasLimit);
-            if (response.TxResponse.Code != ErrorCodeUnauthorized)
+            if (response.TxResponse.Code == ErrorCodeUnauthorized)
             {
-                if (response.TxResponse.Code == 0 && orderFlags != (uint) OrderFlags.ShortTerm)
-                {
-                    wallet.IncrementSequence();
-                }
-
-                wallet.AuthenticatorId = authenticatorId;
-
-                return response;
+                // invalidate the authenticator ID as we received unauthorized error code and retry the transaction
+                wallet.AuthenticatorId = null;
+                continue;
             }
 
-            // invalidate the authenticator ID as we received unauthorized error code and retry the transaction
-            wallet.AuthenticatorId = null;
+            // Cache the authenticator ID for future transactions as we didn't get the unauthorized error code
+            wallet.AuthenticatorId = authenticatorId;
+
+            if (response.TxResponse.Code == ErrorWrongSequence)
+            {
+                OnMessage(new BrokerageMessageEvent(
+                    BrokerageMessageType.Warning,
+                    -1,
+                    "Transaction sequence error, refreshing sequence"));
+                wallet.RefreshSequence(this);
+                continue;
+            }
+
+            if (response.TxResponse.Code == 0 && orderFlags != (uint)OrderFlags.ShortTerm)
+            {
+                wallet.IncrementSequence();
+            }
+
+            return response;
         }
     }
 
@@ -273,6 +316,11 @@ public class dYdXNodeClient : IDisposable
         };
 
         return authInfo;
+    }
+
+    private void OnMessage(BrokerageMessageEvent brokerageMessageEvent)
+    {
+        BrokerageMessage?.Invoke(brokerageMessageEvent);
     }
 
     public void Dispose()
