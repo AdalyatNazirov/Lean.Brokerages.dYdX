@@ -116,25 +116,33 @@ public partial class dYdXBrokerage
             return [];
         }
 
-        var openOrders = _orderProvider.GetOpenOrders();
-        Log.Trace($"dYdXBrokerage.GetCashBalance(): Open orders count: {openOrders.Count}");
-        foreach (var order in openOrders)
+        if (Log.DebuggingEnabled)
         {
-            Log.Trace(order.ToString());
-        }
-
-        var positions = _algorithm.Portfolio.Positions;
-        Log.Trace($"dYdXBrokerage.GetCashBalance(): Positions count: {positions.Count}");
-        foreach (var positionGroup in positions.Groups)
-        {
-            foreach (var position in positionGroup.Positions)
+            try
             {
-                Log.Trace(position.ToString());
+                var openOrders = _orderProvider.GetOpenOrders();
+                var positions = _algorithm.Portfolio.Positions;
+                Log.Debug($"dYdXBrokerage.GetCashBalance(): Open orders count: {openOrders.Count}. Positions count: {positions.Count}");
+                foreach (var order in openOrders)
+                {
+                    Log.Debug(order.ToString());
+                }
+                foreach (var positionGroup in positions.Groups)
+                {
+                    foreach (var position in positionGroup.Positions)
+                    {
+                        Log.Debug(position.ToString());
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Log.Error($"dYdXBrokerage.GetCashBalance(): Error occurred while logging open orders and positions: {ex}");
             }
         }
 
         var subaccount = _apiClient.Indexer.GetSubaccount(Wallet);
-        Log.Trace($"dYdXBrokerage.GetCashBalance(): subaccount: {JsonConvert.SerializeObject(subaccount, Formatting.Indented)}");
+        Log.Debug($"dYdXBrokerage.GetCashBalance(): subaccount: {JsonConvert.SerializeObject(subaccount, Formatting.Indented)}");
         return subaccount.GetCashAmounts(SymbolPropertiesDatabase, _algorithm.BrokerageModel.AccountType);
     }
 
