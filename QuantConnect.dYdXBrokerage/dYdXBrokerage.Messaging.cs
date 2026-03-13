@@ -52,11 +52,10 @@ public partial class dYdXBrokerage
         var e = (WebSocketClientWrapper.TextMessage)webSocketMessage.Data;
         try
         {
-            // Temporary disable logging
-            // if (Log.DebuggingEnabled)
-            // {
-            //     Log.Debug($"{nameof(dYdXBrokerage)}.{nameof(OnUserMessage)}(): {e.Message}");
-            // }
+            if (Log.DebuggingEnabled)
+            {
+                Log.Debug($"{nameof(dYdXBrokerage)}.{nameof(OnUserMessage)}(): {e.Message}");
+            }
 
             var jObj = JObject.Parse(e.Message);
             var topic = jObj.Value<string>("type");
@@ -99,11 +98,10 @@ public partial class dYdXBrokerage
         var e = (WebSocketClientWrapper.TextMessage)webSocketMessage.Data;
         try
         {
-            // Temporary disable logging
-            // if (Log.DebuggingEnabled)
-            // {
-            //     Log.Debug($"{nameof(dYdXBrokerage)}.{nameof(OnUserMessage)}(): {e.Message}");
-            // }
+            if (Log.DebuggingEnabled)
+            {
+                Log.Debug($"{nameof(dYdXBrokerage)}.{nameof(OnUserMessage)}(): {e.Message}");
+            }
 
             var jObj = JObject.Parse(e.Message);
             var topic = jObj.Value<string>("type");
