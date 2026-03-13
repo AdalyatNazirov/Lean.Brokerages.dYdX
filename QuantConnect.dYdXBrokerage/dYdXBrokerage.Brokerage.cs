@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using QuantConnect.Brokerages.dYdX.Exceptions;
 using QuantConnect.Brokerages.dYdX.Extensions;
 using QuantConnect.Brokerages.dYdX.Models;
@@ -115,7 +116,33 @@ public partial class dYdXBrokerage
             return [];
         }
 
+        if (Log.DebuggingEnabled)
+        {
+            try
+            {
+                var openOrders = _orderProvider.GetOpenOrders();
+                var positions = _algorithm.Portfolio.Positions;
+                Log.Debug($"dYdXBrokerage.GetCashBalance(): Open orders count: {openOrders.Count}. Positions count: {positions.Count}");
+                foreach (var order in openOrders)
+                {
+                    Log.Debug(order.ToString());
+                }
+                foreach (var positionGroup in positions.Groups)
+                {
+                    foreach (var position in positionGroup.Positions)
+                    {
+                        Log.Debug(position.ToString());
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Log.Error($"dYdXBrokerage.GetCashBalance(): Error occurred while logging open orders and positions: {ex}");
+            }
+        }
+
         var subaccount = _apiClient.Indexer.GetSubaccount(Wallet);
+        Log.Debug($"dYdXBrokerage.GetCashBalance(): subaccount: {JsonConvert.SerializeObject(subaccount, Formatting.Indented)}");
         return subaccount.GetCashAmounts(SymbolPropertiesDatabase, _algorithm.BrokerageModel.AccountType);
     }
 
